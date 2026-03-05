@@ -8,6 +8,7 @@
 | 2       | 2026-03-05 | Phase 1 verification | Session 2 | — | All checks passed, deps verified, on develop, ready for Phase 2 |
 | 3       | 2026-03-05 | Phase 2 | Session 3 | — | solver.py complete — LP/MIP/QP/IIS/sensitivity, 56/56 tests, merged to develop |
 | 4       | 2026-03-05 | Phase 2 verification | Session 4 | — | 154/154 tests pass, float inf fix, integration tests, QP verified, ready for Phase 3 |
+| 5       | 2026-03-05 | Phase 3 | Session 5 | — | builder.py complete — LP/MIP/Portfolio/Scheduling/validate_model, 94 tests, 248 total |
 
 Update this table at the start and end of each session.
 
@@ -15,10 +16,10 @@ Update this table at the start and end of each session.
 
 ## Current Status
 
-**Active Phase:** Phase 2 VERIFIED — awaiting Phase 3 prompt
-**Active Branch:** develop
-**Last Completed Task:** Phase 2 verification — 154/154 tests, float inf fix, integration tests, QP check
-**Next Task:** Phase 3 — Model Builder (builder.py)
+**Active Phase:** Phase 3 COMPLETE — awaiting review
+**Active Branch:** feature/phase-3-builder (ready to merge)
+**Last Completed Task:** Phase 3 — builder.py + test_builder.py, 94 new tests, 248 total passing
+**Next Task:** Phase 4 — File I/O (fileio.py)
 **Blockers:** None
 
 ---
@@ -57,19 +58,19 @@ Update this table at the start and end of each session.
 - [x] **PHASE 2 COMPLETE** — merged to develop
 - [x] **PHASE 2 VERIFIED** — 154/154 tests, float inf fix, integration + QP check done
 
-### Phase 3 — Model Builder
-- [ ] builder.py — build_from_lp
-- [ ] builder.py — build_from_mip
-- [ ] builder.py — build_from_portfolio (Markowitz QP)
-- [ ] builder.py — build_from_scheduling (binary MIP)
-- [ ] builder.py — validate_model
-- [ ] test_builder.py — LP build + solve integration
-- [ ] test_builder.py — Portfolio build + solve integration
-- [ ] test_builder.py — Scheduling build + solve integration
-- [ ] test_builder.py — Infeasible scheduling detection
-- [ ] test_builder.py — Validation edge cases
-- [ ] Committed to feature/phase-3-builder
-- [ ] **PHASE 3 COMPLETE** — awaiting review
+### Phase 3 — Model Builder (COMPLETE)
+- [x] builder.py — build_from_lp (var bounds, constraint matrix, obj, ModelBuildError)
+- [x] builder.py — build_from_mip (type mapping, binary bounds, solver params)
+- [x] builder.py — build_from_portfolio (Markowitz QP: negated returns, 2λCov, allocation + sector constraints, forbidden assets, symmetry check)
+- [x] builder.py — build_from_scheduling (binary MIP: coverage, max hours, consecutive days, unavailability, skill matching)
+- [x] builder.py — validate_model (empty constraints, unused vars, unbounded obj, magnitude ratio, duplicates)
+- [x] test_builder.py — 22 LP/MIP unit tests
+- [x] test_builder.py — 22 Portfolio unit tests
+- [x] test_builder.py — 21 Scheduling unit tests
+- [x] test_builder.py — 11 validate_model tests
+- [x] test_builder.py — 9 integration tests (LP, MIP, portfolio weights, scheduling coverage, 2× infeasible)
+- [x] Committed to feature/phase-3-builder
+- [x] **PHASE 3 COMPLETE** — awaiting review
 
 ### Phase 4 — File I/O (Excel/CSV)
 - [ ] fileio.py — read_data (Excel + CSV)
@@ -146,6 +147,10 @@ Record any decision made during implementation that deviates from or clarifies t
 | 1 | 2026-03-05 | `objective_ranges`/`rhs_ranges` bounds typed as `float \| None` | HiGHS returns kHighsInf for unbounded ranging; `float('inf')` is not valid JSON. `None` cleanly represents "unbounded in this direction" and round-trips via Pydantic. |
 | 2 | 2026-03-05 | QP ranging returns `None` (not populated) | HiGHS does not support ranging for QP; only LP. Confirmed via QP smoke test. |
 | 3 | 2026-03-05 | `_safe_range_float` clips values >= 1e29 or NaN to `None` | Catches both HiGHS kHighsInf (~1e30) and Python float('inf') uniformly. |
+| 4 | 2026-03-05 | Portfolio builder uses `minimize` sense (not `maximize`) | HiGHS QP works best with minimize + positive semi-definite Q. We negate returns (c_i = -r_i) and use Q = 2λCov. Objective value = negative Markowitz utility; weights are correct. |
+| 5 | 2026-03-05 | Scheduling consecutive-days encoded as rolling window sum constraint | True consecutive-days MIP encoding requires auxiliary binary vars. Rolling window `sum_{d'=d}^{d+mc} sum_s x[w,s,d'] <= mc` is a valid relaxation and catches violations without extra variables. |
+| 6 | 2026-03-05 | Unavailability and skill restrictions encoded as variable upper bounds (ub=0) | Cleaner than adding equality constraints; reduces model size; HiGHS handles bound reductions efficiently. |
+| 7 | 2026-03-05 | validate_model accepts LPModel \| MIPModel (not Portfolio/Scheduling) | Portfolio and Scheduling have their own domain-specific validation in their builders. validate_model targets generic LP/MIP models. |
 
 ---
 
@@ -186,8 +191,8 @@ Update after each phase.
 | 1     | 95            | 95            | 0             | All schema validation, serialization, edge case tests pass |
 | 2     | 56            | 56            | 0             | LP/MIP/infeasible/unbounded/sensitivity/timeout all pass |
 | 2 ver | 3             | 3             | 0             | Cross-phase integration: LP roundtrip, infeasible IIS, JSON completeness |
-| Total | 154           | 154           | 0             | All phases combined |
-| 3     |               |               |               |       |
+| 3     | 94            | 94            | 0             | LP/MIP/Portfolio/Scheduling build + integration tests (weights sum, coverage, infeasible) |
+| Total | 248           | 248           | 0             | All phases combined |
 | 4     |               |               |               |       |
 | 5     |               |               |               |       |
 | 6     |               |               |               |       |
