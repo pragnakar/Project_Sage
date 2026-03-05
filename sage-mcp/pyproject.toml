@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sage-mcp"
+version = "0.1.0"
+description = "SAGE MCP server — local MCP server exposing optimization tools to LLMs via Claude Desktop"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Pragnakar Pedapenki", email = "pragnakar@gmail.com" }]
+requires-python = ">=3.11"
+keywords = ["mcp", "optimization", "llm", "claude", "operations-research"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "mcp>=1.0",
+    "sage-core>=0.1.0",
+]
+
+[project.scripts]
+sage-mcp = "sage_mcp.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["sage_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true

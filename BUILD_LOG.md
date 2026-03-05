@@ -4,7 +4,7 @@
 
 | Session | Date | Phase | Duration | Credits Used (est.) | Notes |
 |---------|------|-------|----------|---------------------|-------|
-| 1       |      |       |          |                     |       |
+| 1       | 2026-03-05 | Phase 1 | — | — | Monorepo init, all schemas, 95 tests passing |
 
 Update this table at the start and end of each session.
 
@@ -12,10 +12,10 @@ Update this table at the start and end of each session.
 
 ## Current Status
 
-**Active Phase:** Not started
-**Active Branch:** None
-**Last Completed Task:** None
-**Next Task:** Phase 1 — Project structure and schemas
+**Active Phase:** Phase 1 COMPLETE — awaiting review
+**Active Branch:** feature/phase-1-project-structure
+**Last Completed Task:** Phase 1 — all schemas implemented, 95/95 tests passing, committed
+**Next Task:** Phase 2 — Solver Wrapper (HiGHS LP/MIP/QP + sensitivity + IIS)
 **Blockers:** None
 
 ---
@@ -23,19 +23,19 @@ Update this table at the start and end of each session.
 ## Phase Progress
 
 ### Phase 1 — Project Structure & Schemas
-- [ ] Monorepo structure created
-- [ ] pyproject.toml files (sage-core, sage-mcp, sage-cloud placeholder)
-- [ ] ruff.toml and .pre-commit-config.yaml
-- [ ] sage_core/__init__.py with version
-- [ ] models.py — LP schemas (LPVariable, LinearConstraint, LinearObjective, LPModel)
-- [ ] models.py — MIP schemas (MIPVariable, MIPModel)
-- [ ] models.py — Portfolio schemas (Asset, PortfolioConstraints, PortfolioModel)
-- [ ] models.py — Scheduling schemas (Worker, Shift, SchedulingModel)
-- [ ] models.py — Solver schemas (SolverInput, SolverResult, IISResult)
-- [ ] models.py — Error hierarchy (SAGEError, DataValidationError, ModelBuildError, SolverError, FileIOError)
-- [ ] test_models.py — all tests written and passing
-- [ ] Committed to feature/phase-1-project-structure
-- [ ] **PHASE 1 COMPLETE** — awaiting review
+- [x] Monorepo structure created
+- [x] pyproject.toml files (sage-core, sage-mcp, sage-cloud placeholder)
+- [x] ruff.toml and .pre-commit-config.yaml
+- [x] sage_core/__init__.py with version
+- [x] models.py — LP schemas (LPVariable, LinearConstraint, LinearObjective, LPModel)
+- [x] models.py — MIP schemas (MIPVariable, MIPModel)
+- [x] models.py — Portfolio schemas (Asset, PortfolioConstraints, PortfolioModel)
+- [x] models.py — Scheduling schemas (Worker, Shift, SchedulingModel)
+- [x] models.py — Solver schemas (SolverInput, SolverResult, IISResult)
+- [x] models.py — Error hierarchy (SAGEError, DataValidationError, ModelBuildError, SolverError, FileIOError)
+- [x] test_models.py — all tests written and passing (95/95)
+- [x] Committed to feature/phase-1-project-structure
+- [x] **PHASE 1 COMPLETE** — awaiting review
 
 ### Phase 2 — Solver Wrapper
 - [ ] solver.py — HiGHS LP wrapper
@@ -157,14 +157,14 @@ Track what was installed and any issues encountered.
 
 | Package | Version | Status | Notes |
 |---------|---------|--------|-------|
-| highspy |         |        |       |
-| ortools |         |        |       |
-| pandas  |         |        |       |
-| openpyxl|         |        |       |
-| pydantic|         |        |       |
-| numpy   |         |        |       |
-| mcp     |         |        |       |
-| ruff    |         |        |       |
+| highspy |         | pending | Installed via sage-core[dev], not yet exercised |
+| ortools |         | pending | Installed via sage-core[dev], not yet exercised |
+| pandas  | >=2.1   | installed | Phase 1 dev install succeeded |
+| openpyxl| >=3.1   | installed | Phase 1 dev install succeeded |
+| pydantic| >=2.5   | installed | All 95 schema tests pass |
+| numpy   | >=1.24  | installed | Phase 1 dev install succeeded |
+| mcp     |         | pending | sage-mcp not yet installed |
+| ruff    | >=0.1   | installed | Configured via ruff.toml |
 
 ---
 
@@ -174,7 +174,7 @@ Update after each phase.
 
 | Phase | Tests Written | Tests Passing | Tests Failing | Notes |
 |-------|---------------|---------------|---------------|-------|
-| 1     |               |               |               |       |
+| 1     | 95            | 95            | 0             | All schema validation, serialization, edge case tests pass |
 | 2     |               |               |               |       |
 | 3     |               |               |               |       |
 | 4     |               |               |               |       |
