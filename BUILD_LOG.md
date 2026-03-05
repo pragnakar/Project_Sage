@@ -4,7 +4,8 @@
 
 | Session | Date | Phase | Duration | Credits Used (est.) | Notes |
 |---------|------|-------|----------|---------------------|-------|
-| 1       | 2026-03-05 | Phase 1 | — | — | Monorepo init, all schemas, 95 tests passing |
+| 1       | 2026-03-05 | Phase 1 | Session 1 | — | Monorepo init, all schemas, 95 tests passing, merged to develop |
+| 2       | 2026-03-05 | Phase 1 verification | Session 2 | — | All checks passed, deps verified, on develop, ready for Phase 2 |
 
 Update this table at the start and end of each session.
 
@@ -12,9 +13,9 @@ Update this table at the start and end of each session.
 
 ## Current Status
 
-**Active Phase:** Phase 1 COMPLETE — awaiting review
-**Active Branch:** feature/phase-1-project-structure
-**Last Completed Task:** Phase 1 — all schemas implemented, 95/95 tests passing, committed
+**Active Phase:** Phase 2 — Prep complete, awaiting prompt
+**Active Branch:** develop
+**Last Completed Task:** Phase 1 verification — all checks passed, merged to develop
 **Next Task:** Phase 2 — Solver Wrapper (HiGHS LP/MIP/QP + sensitivity + IIS)
 **Blockers:** None
 
@@ -157,12 +158,12 @@ Track what was installed and any issues encountered.
 
 | Package | Version | Status | Notes |
 |---------|---------|--------|-------|
-| highspy |         | pending | Installed via sage-core[dev], not yet exercised |
-| ortools |         | pending | Installed via sage-core[dev], not yet exercised |
-| pandas  | >=2.1   | installed | Phase 1 dev install succeeded |
-| openpyxl| >=3.1   | installed | Phase 1 dev install succeeded |
-| pydantic| >=2.5   | installed | All 95 schema tests pass |
-| numpy   | >=1.24  | installed | Phase 1 dev install succeeded |
+| highspy | 1.13.1  | verified | HiGHS solver v1.13.1, ARM Mac OK, h.version() confirmed |
+| ortools | 9.15.6755 | verified | CP-SAT + LP/MIP wrappers import OK |
+| pandas  | 3.0.1   | verified | Phase 1 + ortools dep |
+| openpyxl| 3.1.5   | verified | Phase 1 dev install succeeded |
+| pydantic| 2.12.5  | verified | All 95 schema tests pass |
+| numpy   | 2.4.2   | verified | Phase 1 + highspy dep |
 | mcp     |         | pending | sage-mcp not yet installed |
 | ruff    | >=0.1   | installed | Configured via ruff.toml |
 
