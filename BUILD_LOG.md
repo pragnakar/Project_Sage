@@ -9,6 +9,7 @@
 | 3       | 2026-03-05 | Phase 2 | Session 3 | — | solver.py complete — LP/MIP/QP/IIS/sensitivity, 56/56 tests, merged to develop |
 | 4       | 2026-03-05 | Phase 2 verification | Session 4 | — | 154/154 tests pass, float inf fix, integration tests, QP verified, ready for Phase 3 |
 | 5       | 2026-03-05 | Phase 3 | Session 5 | — | builder.py complete — LP/MIP/Portfolio/Scheduling/validate_model, 94 tests, 248 total |
+| 6       | 2026-03-05 | Phase 3 verification | Session 6 | — | solver binary-var ub=0 fix, test_full_pipeline.py (4 tests), 252 total, merged to develop |
 
 Update this table at the start and end of each session.
 
@@ -16,9 +17,9 @@ Update this table at the start and end of each session.
 
 ## Current Status
 
-**Active Phase:** Phase 3 COMPLETE — awaiting review
-**Active Branch:** feature/phase-3-builder (ready to merge)
-**Last Completed Task:** Phase 3 — builder.py + test_builder.py, 94 new tests, 248 total passing
+**Active Phase:** Phase 3 VERIFIED — merged to develop; ready for Phase 4
+**Active Branch:** develop
+**Last Completed Task:** Phase 3 verification — solver ub=0 bug fixed, full pipeline tests added, 252/252 passing, merged
 **Next Task:** Phase 4 — File I/O (fileio.py)
 **Blockers:** None
 
@@ -69,8 +70,11 @@ Update this table at the start and end of each session.
 - [x] test_builder.py — 21 Scheduling unit tests
 - [x] test_builder.py — 11 validate_model tests
 - [x] test_builder.py — 9 integration tests (LP, MIP, portfolio weights, scheduling coverage, 2× infeasible)
+- [x] test_full_pipeline.py — 4 end-to-end tests (LP, MIP, Portfolio QP, Scheduling binary MIP)
+- [x] fix(solver) — binary variable ub=0 now respected (skill/unavailability blocking)
 - [x] Committed to feature/phase-3-builder
-- [x] **PHASE 3 COMPLETE** — awaiting review
+- [x] Merged to develop
+- [x] **PHASE 3 COMPLETE & VERIFIED** — 252/252 tests, on develop
 
 ### Phase 4 — File I/O (Excel/CSV)
 - [ ] fileio.py — read_data (Excel + CSV)
@@ -151,6 +155,7 @@ Record any decision made during implementation that deviates from or clarifies t
 | 5 | 2026-03-05 | Scheduling consecutive-days encoded as rolling window sum constraint | True consecutive-days MIP encoding requires auxiliary binary vars. Rolling window `sum_{d'=d}^{d+mc} sum_s x[w,s,d'] <= mc` is a valid relaxation and catches violations without extra variables. |
 | 6 | 2026-03-05 | Unavailability and skill restrictions encoded as variable upper bounds (ub=0) | Cleaner than adding equality constraints; reduces model size; HiGHS handles bound reductions efficiently. |
 | 7 | 2026-03-05 | validate_model accepts LPModel \| MIPModel (not Portfolio/Scheduling) | Portfolio and Scheduling have their own domain-specific validation in their builders. validate_model targets generic LP/MIP models. |
+| 8 | 2026-03-05 | Binary variable ub=0 must be passed to HiGHS via addVar, not just SolverInput | _build_highs() was hardcoding addVar(0.0, 1.0) for all binary vars. Skill/unavailability blocks (ub=0 in SolverInput) were silently ignored. Fix: use min(1.0, ub) in addVar. |
 
 ---
 
@@ -162,6 +167,7 @@ Record any decision made during implementation that deviates from or clarifies t
 | 2 | 2026-03-05 | `passHessian` format code 2 returned kError | RESOLVED | Format code 1 (triangular row-wise) works; confirmed via QP test |
 | 3 | 2026-03-05 | `float('inf')` in ranging serializes to null in JSON | RESOLVED | Added `_safe_range_float()` in solver.py; changed type to `float \| None` in models.py |
 | 4 | 2026-03-05 | Integration test: `x_limit` shadow price was 0 when var had explicit ub | RESOLVED | Remove variable upper bound; enforce via constraint only (matches CLAUDE.md known values) |
+| 5 | 2026-03-05 | Scheduling binary vars with ub=0 (skill block) not respected by solver | RESOLVED | `_build_highs()` was hardcoding [0,1] for all binary vars. Fixed to use `min(1.0, ub)` so that ub=0 blocks are passed to HiGHS correctly. |
 
 ---
 
@@ -192,7 +198,8 @@ Update after each phase.
 | 2     | 56            | 56            | 0             | LP/MIP/infeasible/unbounded/sensitivity/timeout all pass |
 | 2 ver | 3             | 3             | 0             | Cross-phase integration: LP roundtrip, infeasible IIS, JSON completeness |
 | 3     | 94            | 94            | 0             | LP/MIP/Portfolio/Scheduling build + integration tests (weights sum, coverage, infeasible) |
-| Total | 248           | 248           | 0             | All phases combined |
+| 3 ver | 4             | 4             | 0             | Full pipeline: LP, MIP knapsack, Portfolio QP, Scheduling binary MIP (end-to-end) |
+| Total | 252           | 252           | 0             | All phases combined |
 | 4     |               |               |               |       |
 | 5     |               |               |               |       |
 | 6     |               |               |               |       |
