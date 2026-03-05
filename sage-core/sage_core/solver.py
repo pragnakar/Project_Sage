@@ -134,8 +134,11 @@ def _build_highs(inp: SolverInput) -> "highspy.Highs":
     for i in range(inp.num_variables):
         vtype = inp.variable_types[i]
         if vtype == "binary":
-            # Binary variables are always bounded [0, 1]
-            h.addVar(0.0, 1.0)
+            # Respect ub=0 for variables blocked by the builder
+            # (e.g. skill mismatch / unavailability in scheduling).
+            # Normal binary vars have ub=1; blocked ones have ub=0.
+            ub = float(inp.variable_upper_bounds[i])
+            h.addVar(0.0, min(1.0, ub))
         else:
             lb = inp.variable_lower_bounds[i]
             ub = inp.variable_upper_bounds[i]
