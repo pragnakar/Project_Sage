@@ -6,6 +6,8 @@
 |---------|------|-------|----------|---------------------|-------|
 | 1       | 2026-03-05 | Phase 1 | Session 1 | — | Monorepo init, all schemas, 95 tests passing, merged to develop |
 | 2       | 2026-03-05 | Phase 1 verification | Session 2 | — | All checks passed, deps verified, on develop, ready for Phase 2 |
+| 3       | 2026-03-05 | Phase 2 | Session 3 | — | solver.py complete — LP/MIP/QP/IIS/sensitivity, 56/56 tests, merged to develop |
+| 4       | 2026-03-05 | Phase 2 verification | Session 4 | — | 154/154 tests pass, float inf fix, integration tests, QP verified, ready for Phase 3 |
 
 Update this table at the start and end of each session.
 
@@ -13,10 +15,10 @@ Update this table at the start and end of each session.
 
 ## Current Status
 
-**Active Phase:** Phase 2 COMPLETE — awaiting review
-**Active Branch:** feature/phase-2-solver (ready to merge)
-**Last Completed Task:** Phase 2 — solver.py + test_solver.py, 56/56 tests, merged to develop
-**Next Task:** Phase 2 — Solver Wrapper (HiGHS LP/MIP/QP + sensitivity + IIS)
+**Active Phase:** Phase 2 VERIFIED — awaiting Phase 3 prompt
+**Active Branch:** develop
+**Last Completed Task:** Phase 2 verification — 154/154 tests, float inf fix, integration tests, QP check
+**Next Task:** Phase 3 — Model Builder (builder.py)
 **Blockers:** None
 
 ---
@@ -38,7 +40,7 @@ Update this table at the start and end of each session.
 - [x] Committed to feature/phase-1-project-structure
 - [x] **PHASE 1 COMPLETE** — awaiting review
 
-### Phase 2 — Solver Wrapper (COMPLETE)
+### Phase 2 — Solver Wrapper (VERIFIED)
 - [x] solver.py — HiGHS LP wrapper
 - [x] solver.py — HiGHS MIP wrapper
 - [x] solver.py — QP mode for quadratic objectives
@@ -52,7 +54,8 @@ Update this table at the start and end of each session.
 - [x] test_solver.py — Sensitivity test
 - [x] test_solver.py — Timeout test
 - [x] Committed to feature/phase-2-solver
-- [x] **PHASE 2 COMPLETE** — awaiting review
+- [x] **PHASE 2 COMPLETE** — merged to develop
+- [x] **PHASE 2 VERIFIED** — 154/154 tests, float inf fix, integration + QP check done
 
 ### Phase 3 — Model Builder
 - [ ] builder.py — build_from_lp
@@ -140,7 +143,9 @@ Record any decision made during implementation that deviates from or clarifies t
 
 | # | Date | Decision | Rationale |
 |---|------|----------|-----------|
-|   |      |          |           |
+| 1 | 2026-03-05 | `objective_ranges`/`rhs_ranges` bounds typed as `float \| None` | HiGHS returns kHighsInf for unbounded ranging; `float('inf')` is not valid JSON. `None` cleanly represents "unbounded in this direction" and round-trips via Pydantic. |
+| 2 | 2026-03-05 | QP ranging returns `None` (not populated) | HiGHS does not support ranging for QP; only LP. Confirmed via QP smoke test. |
+| 3 | 2026-03-05 | `_safe_range_float` clips values >= 1e29 or NaN to `None` | Catches both HiGHS kHighsInf (~1e30) and Python float('inf') uniformly. |
 
 ---
 
@@ -148,7 +153,10 @@ Record any decision made during implementation that deviates from or clarifies t
 
 | # | Date | Blocker | Status | Resolution |
 |---|------|---------|--------|------------|
-|   |      |         |        |            |
+| 1 | 2026-03-05 | `getRanging()` returns tuple not HighsRanging directly | RESOLVED | Unpack: `ranging_status, ranging = h.getRanging()` |
+| 2 | 2026-03-05 | `passHessian` format code 2 returned kError | RESOLVED | Format code 1 (triangular row-wise) works; confirmed via QP test |
+| 3 | 2026-03-05 | `float('inf')` in ranging serializes to null in JSON | RESOLVED | Added `_safe_range_float()` in solver.py; changed type to `float \| None` in models.py |
+| 4 | 2026-03-05 | Integration test: `x_limit` shadow price was 0 when var had explicit ub | RESOLVED | Remove variable upper bound; enforce via constraint only (matches CLAUDE.md known values) |
 
 ---
 
@@ -177,6 +185,8 @@ Update after each phase.
 |-------|---------------|---------------|---------------|-------|
 | 1     | 95            | 95            | 0             | All schema validation, serialization, edge case tests pass |
 | 2     | 56            | 56            | 0             | LP/MIP/infeasible/unbounded/sensitivity/timeout all pass |
+| 2 ver | 3             | 3             | 0             | Cross-phase integration: LP roundtrip, infeasible IIS, JSON completeness |
+| Total | 154           | 154           | 0             | All phases combined |
 | 3     |               |               |               |       |
 | 4     |               |               |               |       |
 | 5     |               |               |               |       |

@@ -447,10 +447,28 @@ def _extract_sensitivity(
     return sensitivity
 
 
+def _safe_range_float(v: float) -> float | None:
+    """Convert a ranging bound to None if it is infinite (not JSON-serializable).
+
+    HiGHS returns ``kHighsInf`` (≈ 1e30) or ``float('inf')`` for unbounded
+    ranging values.  We normalise both to ``None`` so the result round-trips
+    cleanly through JSON.
+
+    Args:
+        v: Raw float from HiGHS ranging.
+
+    Returns:
+        The original float, or ``None`` if effectively infinite.
+    """
+    if abs(v) >= 1e29 or v != v:  # second check catches NaN
+        return None
+    return v
+
+
 def _extract_obj_ranges(
     ranging: "highspy.HighsRanging",
     inp: SolverInput,
-) -> dict[str, tuple[float, float]]:
+) -> dict[str, tuple[float | None, float | None]]:
     """Extract objective coefficient allowable ranges.
 
     ``col_cost_dn.value_[j]`` and ``col_cost_up.value_[j]`` hold the
@@ -465,14 +483,14 @@ def _extract_obj_ranges(
         Dict mapping variable name to ``(lower_bound, upper_bound)`` on the
         objective coefficient.
     """
-    obj_ranges: dict[str, tuple[float, float]] = {}
+    obj_ranges: dict[str, tuple[float | None, float | None]] = {}
     try:
         dn = list(ranging.col_cost_dn.value_)
         up = list(ranging.col_cost_up.value_)
         for j, name in enumerate(inp.variable_names):
             if j < len(dn) and j < len(up):
-                lo = float(dn[j])
-                hi = float(up[j])
+                lo = _safe_range_float(float(dn[j]))
+                hi = _safe_range_float(float(up[j]))
                 obj_ranges[name] = (lo, hi)
     except Exception as exc:
         logger.debug("Objective ranging failed: %s", exc)
@@ -482,7 +500,7 @@ def _extract_obj_ranges(
 def _extract_rhs_ranges(
     ranging: "highspy.HighsRanging",
     inp: SolverInput,
-) -> dict[str, tuple[float, float]]:
+) -> dict[str, tuple[float | None, float | None]]:
     """Extract constraint RHS allowable ranges.
 
     ``row_bound_dn.value_[i]`` and ``row_bound_up.value_[i]`` hold the
@@ -495,16 +513,16 @@ def _extract_rhs_ranges(
 
     Returns:
         Dict mapping constraint name to ``(lower_bound, upper_bound)`` on
-        the RHS value.
+        the RHS value.  A ``None`` bound means unbounded in that direction.
     """
-    rhs_ranges: dict[str, tuple[float, float]] = {}
+    rhs_ranges: dict[str, tuple[float | None, float | None]] = {}
     try:
         dn = list(ranging.row_bound_dn.value_)
         up = list(ranging.row_bound_up.value_)
         for i, name in enumerate(inp.constraint_names):
             if i < len(dn) and i < len(up):
-                lo = float(dn[i])
-                hi = float(up[i])
+                lo = _safe_range_float(float(dn[i]))
+                hi = _safe_range_float(float(up[i]))
                 rhs_ranges[name] = (lo, hi)
     except Exception as exc:
         logger.debug("RHS ranging failed: %s", exc)

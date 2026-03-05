@@ -726,10 +726,11 @@ class SolverResult(BaseModel):
         default=None, description="Names of constraints at zero slack"
     )
     # Ranging (LP only)
-    objective_ranges: dict[str, tuple[float, float]] | None = Field(
+    # None in a bound position means the range is unbounded in that direction.
+    objective_ranges: dict[str, tuple[float | None, float | None]] | None = Field(
         default=None, description="Objective coefficient allowable ranges"
     )
-    rhs_ranges: dict[str, tuple[float, float]] | None = Field(
+    rhs_ranges: dict[str, tuple[float | None, float | None]] | None = Field(
         default=None, description="RHS allowable ranges"
     )
     # Infeasibility analysis
