@@ -13,9 +13,9 @@ Update this table at the start and end of each session.
 
 ## Current Status
 
-**Active Phase:** Phase 2 — Prep complete, awaiting prompt
-**Active Branch:** develop
-**Last Completed Task:** Phase 1 verification — all checks passed, merged to develop
+**Active Phase:** Phase 2 COMPLETE — awaiting review
+**Active Branch:** feature/phase-2-solver (ready to merge)
+**Last Completed Task:** Phase 2 — solver.py + test_solver.py, 56/56 tests, merged to develop
 **Next Task:** Phase 2 — Solver Wrapper (HiGHS LP/MIP/QP + sensitivity + IIS)
 **Blockers:** None
 
@@ -38,21 +38,21 @@ Update this table at the start and end of each session.
 - [x] Committed to feature/phase-1-project-structure
 - [x] **PHASE 1 COMPLETE** — awaiting review
 
-### Phase 2 — Solver Wrapper
-- [ ] solver.py — HiGHS LP wrapper
-- [ ] solver.py — HiGHS MIP wrapper
-- [ ] solver.py — QP mode for quadratic objectives
-- [ ] solver.py — Sensitivity extraction (shadow prices, reduced costs, ranges)
-- [ ] solver.py — IIS computation
-- [ ] solver.py — Time limit and parameter handling
-- [ ] test_solver.py — LP optimal test
-- [ ] test_solver.py — MIP optimal test
-- [ ] test_solver.py — Infeasible + IIS test
-- [ ] test_solver.py — Unbounded test
-- [ ] test_solver.py — Sensitivity test
-- [ ] test_solver.py — Timeout test
-- [ ] Committed to feature/phase-2-solver
-- [ ] **PHASE 2 COMPLETE** — awaiting review
+### Phase 2 — Solver Wrapper (COMPLETE)
+- [x] solver.py — HiGHS LP wrapper
+- [x] solver.py — HiGHS MIP wrapper
+- [x] solver.py — QP mode for quadratic objectives
+- [x] solver.py — Sensitivity extraction (shadow prices, reduced costs, ranges)
+- [x] solver.py — IIS computation
+- [x] solver.py — Time limit and parameter handling
+- [x] test_solver.py — LP optimal test
+- [x] test_solver.py — MIP optimal test
+- [x] test_solver.py — Infeasible + IIS test
+- [x] test_solver.py — Unbounded test
+- [x] test_solver.py — Sensitivity test
+- [x] test_solver.py — Timeout test
+- [x] Committed to feature/phase-2-solver
+- [x] **PHASE 2 COMPLETE** — awaiting review
 
 ### Phase 3 — Model Builder
 - [ ] builder.py — build_from_lp
@@ -176,7 +176,7 @@ Update after each phase.
 | Phase | Tests Written | Tests Passing | Tests Failing | Notes |
 |-------|---------------|---------------|---------------|-------|
 | 1     | 95            | 95            | 0             | All schema validation, serialization, edge case tests pass |
-| 2     |               |               |               |       |
+| 2     | 56            | 56            | 0             | LP/MIP/infeasible/unbounded/sensitivity/timeout all pass |
 | 3     |               |               |               |       |
 | 4     |               |               |               |       |
 | 5     |               |               |               |       |
