@@ -2,7 +2,7 @@
 
 ## Project
 
-SAGE (Solver-Augmented Generation Engine) — an MCP server that gives LLMs certified mathematical optimization capabilities via open-source solvers.
+SAGE (Solver-Augmented Grounding Engine) — an MCP server that gives LLMs certified mathematical optimization capabilities via open-source solvers.
 
 ## Read First
 

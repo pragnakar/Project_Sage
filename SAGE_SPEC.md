@@ -1,8 +1,8 @@
 # Project SAGE — Technical Specification v1.0
 
-## Solver-Augmented Generation Engine
+## Solver-Augmented Grounding Engine
 
-**Author:** Pragnakar Pedapenki (pragnakar@gmail.com)
+**Author:** Pragnakar Pedapenki ( https://x.com/pragnakar )
 **Date:** March 5, 2026
 **Status:** MVP Build Specification — Ready for Implementation
 

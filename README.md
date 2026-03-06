@@ -1,8 +1,29 @@
-# SAGE — Solver-Augmented Generation Engine
+# SAGE — Solver-Augmented Grounding Engine
 
-**SAGE** is a local MCP server that gives Claude Desktop the ability to formulate and solve mathematical optimization problems using certified open-source solvers (HiGHS, OSQP).
+**SAGE** grounds AI in mathematical truth. It is a local MCP server that gives Claude Desktop — and any MCP-compatible agent — the ability to formulate, solve, and certify mathematical optimization problems using production-grade open-source solvers.
 
-> Status: **v0.1.0 — Alpha**
+> Status: **v0.1.0 — Alpha** · Author: Peter Pragnakar Atreides
+
+---
+
+## Why SAGE Exists
+
+Large Language Models are probabilistic text generators. When you ask an LLM to allocate a budget, design a schedule, optimize a route, or balance a portfolio, it generates text that *resembles* a solution. No simplex method runs underneath. No branch-and-bound search. No constraint check. The model cannot prove optimality, certify feasibility, or — critically — declare with certainty that no feasible solution exists.
+
+> **One of the most valuable outcomes in decision-making is a mathematically certified statement of infeasibility.** It tells decision-makers their goals conflict, their assumptions are inconsistent, or their constraints must be renegotiated. LLMs have no native mechanism to produce this. SAGE provides it.
+
+SAGE introduces a hybrid intelligence architecture: LLMs handle language and ambiguity; solvers handle optimality and feasibility. Each component does what it is best suited for.
+
+### The Runtime Advantage
+
+LLMs operate as single-pass inference systems — token generation stops when the response is done. Optimization solvers work differently: they are inherently iterative and stateful, designed to run for minutes, hours, or days while continuously improving. At any point they can return the best solution found so far, a bound on the optimal objective, and a certificate of optimality or infeasibility.
+
+This "anytime" property enables SAGE to:
+- Decompose large problems using Benders decomposition, column generation, or Lagrangian relaxation
+- Run long-horizon solves asynchronously while the LLM remains conversationally responsive
+- Checkpoint, pause, and resume optimization without losing progress
+
+The result: AI shifts from *immediate but approximate* to *sustained and mathematically grounded*.
 
 ---
 
@@ -15,6 +36,7 @@
 | File I/O | Read/write Excel (.xlsx) and CSV |
 | Infeasibility | IIS detection + ranked relaxation suggestions |
 | Sensitivity | Dual values, reduced costs, allowable ranges |
+| Explanation | Plain-language narration of every result |
 
 ---
 
@@ -35,7 +57,7 @@ pip install -e sage-mcp/
 
 ### 2. Configure Claude Desktop
 
-Find your Claude Desktop config file:
+Find your config file:
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
@@ -88,34 +110,31 @@ Explain the result in detail and suggest what would change if I removed the 30% 
 **LP from scratch**
 ```
 Solve this LP and show me the sensitivity analysis:
-maximize 5x + 4y
-subject to:
-  6x + 4y <= 24
-  x + 2y <= 6
-  x, y >= 0
+maximize 5x + 4y subject to 6x + 4y <= 24, x + 2y <= 6, x,y >= 0
 ```
 
 **Infeasibility diagnosis**
 ```
 I have a scheduling problem with 3 nurses and 6 required shifts.
-Check if it's feasible and if not, tell me which constraints conflict.
+Check if it's feasible and if not, tell me which constraints conflict and how to fix them.
 ```
 
 **Template workflow**
 ```
-Generate a portfolio template, fill in my 8 assets, and solve it with risk aversion 2.5.
+Generate a portfolio template, I'll fill in my 8 assets,
+then solve it with risk aversion 2.5 and explain the sensitivity.
 ```
 
 ---
 
 ## Example Files
 
-| File | Problem | Description |
+| File | Problem | Result |
 |---|---|---|
-| `examples/portfolio_5_assets.xlsx` | Portfolio QP | 5 assets (equity + bonds), 5×5 covariance matrix |
-| `examples/nurse_scheduling.xlsx` | Scheduling MIP | 8 nurses, 3 shifts (Morning/Evening/Night), 7 days |
-| `examples/transport_routing.xlsx` | Transport LP | 3 warehouses, 5 stores, cost matrix |
-| `examples/blending_problem.csv` | Blending LP | 6 ingredients, nutrient requirements |
+| `examples/portfolio_5_assets.xlsx` | Portfolio QP — 5 assets (equity + bonds) | Optimal allocation |
+| `examples/nurse_scheduling.xlsx` | Scheduling MIP — 8 nurses, 3 shifts, 7 days | Infeasible: IIS computed |
+| `examples/transport_routing.xlsx` | Transport LP — 3 warehouses → 5 stores | Optimal routes, $2,472 cost |
+| `examples/blending_problem.xlsx` | Blending LP — 6 ingredients, nutrient constraints | Optimal blend, $23.47/100kg |
 
 ---
 
@@ -130,19 +149,16 @@ Project_Sage/
 │       ├── builder.py  # JSON → SolverInput builders
 │       ├── fileio.py   # Excel/CSV read/write, template generation
 │       └── explainer.py# Natural language solution narration + IIS explanation
-├── sage-mcp/           # Local MCP server (this package)
-│   └── sage_mcp/
-│       ├── server.py   # 7 MCP tools, ServerState, stdio transport
-│       └── local_io.py # Path resolution and file I/O helpers
-├── sage-cloud/         # FastAPI cloud API (future — v0.2)
+├── sage-mcp/           # Local MCP server (this package — v0.1)
+├── sage-cloud/         # Cloud API (future — v0.2)
 └── examples/           # Ready-to-use example files
 ```
 
 **Data flow:**
 ```
 Claude Desktop → stdio JSON-RPC → sage-mcp → sage-core → HiGHS/OSQP
-                                     ↑                        ↓
-                                  local_io           SolverResult + IIS
+                                                               ↓
+                                                    SolverResult + IIS + Sensitivity
 ```
 
 ---
@@ -155,7 +171,7 @@ Variables with continuous bounds, linear objective, linear constraints (<=, >=, 
 ### Mixed-Integer Program (MIP)
 Same as LP but variables can be `continuous`, `integer`, or `binary`.
 
-### Portfolio Optimization
+### Portfolio Optimization (QP)
 Markowitz mean-variance: minimize risk (quadratic) for a target return, with optional sector and weight constraints.
 
 ### Workforce Scheduling
@@ -163,12 +179,27 @@ Assign workers to shifts over a planning horizon. Constraints: min/max workers p
 
 ---
 
+## Roadmap
+
+| Phase | Focus |
+|---|---|
+| v0.1 (now) | LP, MIP, Portfolio QP, Scheduling — 7 MCP tools, local stdio server |
+| v0.2 | sage-cloud FastAPI — remote deployment, async long-running solves |
+| v0.3 | Simulation — Monte Carlo, discrete-event, stochastic programming |
+| v1.0 | Decision Intelligence Platform — industry templates, solver marketplace |
+
+The long-term ambition is a planetary-scale optimization fabric: interconnected, federated models that co-optimize transportation, energy, supply chains, and infrastructure across institutions — turning SAGE from a single-user tool into shared decision infrastructure.
+
+---
+
 ## Development
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup, test instructions, and branch conventions.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup, test instructions, and branch conventions.
+
+459 tests · 0 failures · sage-core 0.1.0 · sage-mcp 0.1.0
 
 ---
 
 ## License
 
-MIT — Copyright (c) 2026 Pragnakar Pedapenki
+MIT — Copyright (c) 2026 Peter Pragnakar Atreides
