@@ -13,6 +13,7 @@
 | 7       | 2026-03-05 | Phase 4 | Session 7 | — | fileio.py complete — read/write/template/bridge, 68 tests, 320 total, merged to develop |
 | 8       | 2026-03-05 | Phase 5 | Session 8 | — | explainer.py + relaxation.py complete — 62 new tests, 382 total; builder consecutive_days bug fix |
 | 9       | 2026-03-05 | Phase 6 | Session 9 | — | sage-mcp complete — server.py (7 tools), local_io.py, __main__.py, 53 tests, 435 total; entry point fix |
+| 10      | 2026-03-05 | Phase 7 | Session 10 | — | Polish + v0.1.0 — 4 example files, 19 smoke tests, README (174 lines), CONTRIBUTING.md, .gitignore, metadata; 454/454 tests; tagged v0.1.0 |
 
 Update this table at the start and end of each session.
 
@@ -20,10 +21,10 @@ Update this table at the start and end of each session.
 
 ## Current Status
 
-**Active Phase:** Phase 6 VERIFIED — merged to develop; ready for Phase 7
-**Active Branch:** develop
-**Last Completed Task:** Phase 6 verification — 53 new tests (7 tools, state, errors, conversations), 435/435 passing, entry point fixed, merged
-**Next Task:** Phase 7 — Examples, Docs & Polish (README, examples/, v0.1.0)
+**Active Phase:** COMPLETE — v0.1.0 released
+**Active Branch:** main (tagged v0.1.0)
+**Last Completed Task:** Phase 7 — 4 examples, 19 smoke tests, README, CONTRIBUTING, .gitignore, metadata; 454/454 passing; merged develop → main; tagged v0.1.0
+**Next Task:** Phase 8 (sage-cloud FastAPI) or PyPI publish
 **Blockers:** None
 
 ---
