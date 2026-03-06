@@ -12,6 +12,7 @@
 | 6       | 2026-03-05 | Phase 3 verification | Session 6 | — | solver binary-var ub=0 fix, test_full_pipeline.py (4 tests), 252 total, merged to develop |
 | 7       | 2026-03-05 | Phase 4 | Session 7 | — | fileio.py complete — read/write/template/bridge, 68 tests, 320 total, merged to develop |
 | 8       | 2026-03-05 | Phase 5 | Session 8 | — | explainer.py + relaxation.py complete — 62 new tests, 382 total; builder consecutive_days bug fix |
+| 9       | 2026-03-05 | Phase 6 | Session 9 | — | sage-mcp complete — server.py (7 tools), local_io.py, __main__.py, 53 tests, 435 total; entry point fix |
 
 Update this table at the start and end of each session.
 
@@ -19,10 +20,10 @@ Update this table at the start and end of each session.
 
 ## Current Status
 
-**Active Phase:** Phase 5 VERIFIED — merged to develop; ready for Phase 6
+**Active Phase:** Phase 6 VERIFIED — merged to develop; ready for Phase 7
 **Active Branch:** develop
-**Last Completed Task:** Phase 5 verification — 62 new tests (38 explainer + 24 relaxation), 382/382 passing, builder bug fixed, merged
-**Next Task:** Phase 6 — MCP Server (sage-mcp/server.py)
+**Last Completed Task:** Phase 6 verification — 53 new tests (7 tools, state, errors, conversations), 435/435 passing, entry point fixed, merged
+**Next Task:** Phase 7 — Examples, Docs & Polish (README, examples/, v0.1.0)
 **Blockers:** None
 
 ---
@@ -107,25 +108,25 @@ Update this table at the start and end of each session.
 - [x] Merged to develop
 - [x] **PHASE 5 COMPLETE & VERIFIED** — 382/382 tests, on develop
 
-### Phase 6 — MCP Server
-- [ ] server.py — MCP server setup with official SDK
-- [ ] server.py — Tool: solve_optimization
-- [ ] server.py — Tool: read_data_file
-- [ ] server.py — Tool: solve_from_file
-- [ ] server.py — Tool: explain_solution
-- [ ] server.py — Tool: check_feasibility
-- [ ] server.py — Tool: generate_template
-- [ ] server.py — Tool: suggest_relaxations
-- [ ] server.py — Server state (last result storage)
-- [ ] server.py — Error handling (never crash)
-- [ ] local_io.py — path resolution, file read/write
-- [ ] __main__.py — entry point
-- [ ] claude_desktop_config.json — example config
-- [ ] test_server.py — tool input validation
-- [ ] test_server.py — solve flow
-- [ ] test_server.py — error handling
-- [ ] Committed to feature/phase-6-mcp-server
-- [ ] **PHASE 6 COMPLETE** — awaiting review
+### Phase 6 — MCP Server (COMPLETE)
+- [x] server.py — MCP server setup with official Python MCP SDK (mcp>=1.0), stdio transport
+- [x] server.py — Tool: solve_optimization (LP/MIP/portfolio/scheduling, auto type detect)
+- [x] server.py — Tool: read_data_file (Excel/CSV preview with sheet/row/column summary)
+- [x] server.py — Tool: solve_from_file (read → build → solve → write _optimized.xlsx)
+- [x] server.py — Tool: explain_solution (brief/standard/detailed from stored state)
+- [x] server.py — Tool: check_feasibility (feasibility + IIS + relaxation suggestions)
+- [x] server.py — Tool: generate_template (all 4 problem types)
+- [x] server.py — Tool: suggest_relaxations (ranked from stored infeasible IIS)
+- [x] server.py — ServerState stores last result/model/solver_input/iis for follow-up tools
+- [x] server.py — Error handling: SAGEError, ValidationError, FileNotFoundError, unexpected all caught
+- [x] local_io.py — resolve_path (~, relative→absolute, existence check), ensure_output_dir, output_path_for
+- [x] __main__.py — entry point for python -m sage_mcp
+- [x] claude_desktop_config.json — example Claude Desktop configuration (python + uvx variants)
+- [x] test_server.py — 53 tests: tool registration, all 7 tools, state sequences, 8 error cases
+- [x] fix: console_scripts entry point corrected to sage_mcp.server:main
+- [x] Committed to feature/phase-6-mcp-server
+- [x] Merged to develop
+- [x] **PHASE 6 COMPLETE & VERIFIED** — 435/435 tests, on develop
 
 ### Phase 7 — Examples, Docs & Polish
 - [ ] examples/portfolio_5_assets.xlsx
@@ -165,6 +166,10 @@ Record any decision made during implementation that deviates from or clarifies t
 | 13 | 2026-03-05 | explain_result domain dispatch uses isinstance priority order | PortfolioModel and SchedulingModel are checked before MIPModel/LPModel so domain-specific formatting (%, asset names, shift assignments) applies correctly. Falls through to LP/MIP generic formatting if neither matches. |
 | 14 | 2026-03-05 | Binary search: exponential probe then 25-iteration bisection | Probe multiplies max(|rhs|, 1.0) by factors [0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 50.0, 100.0, 1000.0] to bound the feasible region, then bisection finds minimum relaxation. Returns None if probe fails (model too infeasible for single-constraint fix — this is a known limitation, not a bug). |
 | 15 | 2026-03-05 | consecutive_days RHS corrected to mc × S for multi-shift models | Original builder used float(mc); the constraint sums assignments across all shifts in the window, so limit must be max_consecutive_days × num_shifts. For S=3 and mc=5, RHS was 5 (1.67 days) instead of 15 (5 days). Fix makes relaxation tractable for multi-shift infeasible models. |
+| 16 | 2026-03-05 | MCP server stores last result in ServerState dataclass (module-level singleton) | ServerState holds last_result, last_model, last_solver_input, last_iis. Module-level (not per-request) because MCP stdio server has one process/one user — no concurrency. All follow-up tools (explain_solution, suggest_relaxations) read from this state. |
+| 17 | 2026-03-05 | Tool responses formatted as plain text, not JSON or structured objects | MCP text content is what the LLM sees and relays to the user. Plain text explanations (same format as sage-core's explain_result) are more LLM-friendly than JSON. File paths included verbatim so the LLM can tell the user where output was saved. |
+| 18 | 2026-03-05 | Model type auto-detected from JSON structure if problem_type not provided | Detection priority: explicit problem_type field → portfolio (has assets+covariance_matrix) → scheduling (has workers+shifts) → MIP (has non-continuous var_type) → LP. This lets the LLM omit problem_type for obvious cases. |
+| 19 | 2026-03-05 | pyproject.toml console_scripts pointed to __main__:main instead of server:main | __main__.py imports main from server.py and re-executes it under __name__=="__main__", but the module-level name 'main' doesn't exist in __main__.py's namespace for pip script wrappers. Fixed to point directly to sage_mcp.server:main. |
 
 ---
 
@@ -181,6 +186,7 @@ Record any decision made during implementation that deviates from or clarifies t
 | 7 | 2026-03-05 | `_strip_blank` drops all columns from header-only (empty data) DataFrame | RESOLVED | `dropna(axis=1, how="all")` on a DataFrame with zero rows drops all columns since every column is trivially all-null. Added explicit `if len(df) == 0` early-exit in `_parse_portfolio` before calling `_normalise_cols`. |
 | 8 | 2026-03-05 | consecutive_days RHS wrong for multi-shift models — relaxation probe fails | RESOLVED | builder.py line 566: `float(mc)` → `float(mc * S)`. The rolling window constraint sums assignments across all S shifts, so RHS must be mc×S. Buggy RHS=mc made models far more infeasible than intended and blocked probe from ever finding feasibility for single-constraint relaxation. |
 | 9 | 2026-03-05 | Deeply infeasible scheduling model (demand >> capacity) returns 0 relaxation suggestions | KNOWN LIMITATION | When demand exceeds total system capacity (e.g., 28 required assignments vs 18 max capacity), no single constraint relaxation can restore feasibility. suggest_relaxations returns [] correctly; this is documented behavior, not a bug. |
+| 10 | 2026-03-05 | console_scripts entry point sage_mcp.__main__:main fails for pip-installed script | RESOLVED | __main__.py imports main but doesn't define it as a module-level name; pip's script wrapper calls `__main__.main()` which fails with AttributeError. Fixed pyproject.toml to point to `sage_mcp.server:main` directly. |
 
 ---
 
@@ -196,7 +202,7 @@ Track what was installed and any issues encountered.
 | openpyxl| 3.1.5   | verified | Phase 1 dev install succeeded |
 | pydantic| 2.12.5  | verified | All 95 schema tests pass |
 | numpy   | 2.4.2   | verified | Phase 1 + highspy dep |
-| mcp     |         | pending | sage-mcp not yet installed |
+| mcp     | 1.26.0  | verified | Phase 6 — stdio transport, 7 tools registered, anyio/httpx/starlette installed as deps |
 | ruff    | >=0.1   | installed | Configured via ruff.toml |
 
 ---
@@ -214,7 +220,8 @@ Update after each phase.
 | 3 ver | 4             | 4             | 0             | Full pipeline: LP, MIP knapsack, Portfolio QP, Scheduling binary MIP (end-to-end) |
 | 4     | 68            | 68            | 0             | Excel/CSV read, write results, templates, DataFrame→model, messy data, round-trip, errors |
 | 5     | 62            | 62            | 0             | explainer: 38 tests (detail levels, domain language, infeasibility, integration); relaxation: 24 tests (suggestions, ranking, re-solve, pipeline, edge cases) |
-| Total | 382           | 382           | 0             | All phases combined |
-| 6     |               |               |               |       |
+| 6     | 53            | 53            | 0             | MCP server: 7 tool registration, all tool handlers, state sequences, 8 error cases, conversation simulations |
+| Total | 435           | 435           | 0             | All phases combined (382 sage-core + 53 sage-mcp) |
+| 7     |               |               |               |       |
 | 6     |               |               |               |       |
 | 7     |               |               |               |       |
