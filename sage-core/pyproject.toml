@@ -23,11 +23,6 @@ classifiers = [
     "Topic :: Office/Business :: Financial",
     "Typing :: Typed",
 ]
-
-[project.urls]
-Homepage = "https://github.com/pragnakar/sage"
-Repository = "https://github.com/pragnakar/sage"
-"Bug Tracker" = "https://github.com/pragnakar/sage/issues"
 dependencies = [
     "highspy>=1.7.0",
     "ortools>=9.9",
@@ -36,6 +31,11 @@ dependencies = [
     "pydantic>=2.5",
     "numpy>=1.24",
 ]
+
+[project.urls]
+Homepage = "https://github.com/pragnakar/sage"
+Repository = "https://github.com/pragnakar/sage"
+"Bug Tracker" = "https://github.com/pragnakar/sage/issues"
 
 [project.optional-dependencies]
 dev = [

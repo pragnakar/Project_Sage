@@ -23,11 +23,6 @@ classifiers = [
     "Topic :: Office/Business :: Financial",
     "Typing :: Typed",
 ]
-
-[project.urls]
-Homepage = "https://github.com/pragnakar/sage"
-Repository = "https://github.com/pragnakar/sage"
-"Bug Tracker" = "https://github.com/pragnakar/sage/issues"
 dependencies = [
     "mcp>=1.0",
     "sage-core>=0.1.0",
@@ -35,6 +30,11 @@ dependencies = [
 
 [project.scripts]
 sage-mcp = "sage_mcp.server:main"
+
+[project.urls]
+Homepage = "https://github.com/pragnakar/sage"
+Repository = "https://github.com/pragnakar/sage"
+"Bug Tracker" = "https://github.com/pragnakar/sage/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["sage_mcp"]

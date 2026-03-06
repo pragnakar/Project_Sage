@@ -22,7 +22,8 @@ EXAMPLES_DIR = REPO_ROOT / "examples"
 PORTFOLIO_FILE = EXAMPLES_DIR / "portfolio_5_assets.xlsx"
 NURSE_FILE = EXAMPLES_DIR / "nurse_scheduling.xlsx"
 TRANSPORT_FILE = EXAMPLES_DIR / "transport_routing.xlsx"
-BLENDING_CSV = EXAMPLES_DIR / "blending_problem.csv"
+BLENDING_CSV = EXAMPLES_DIR / "blending_problem.csv"    # data reference file
+BLENDING_FILE = EXAMPLES_DIR / "blending_problem.xlsx"  # solvable generic_lp
 
 
 def run(coro):
@@ -72,6 +73,9 @@ class TestExampleFilesExist:
     def test_blending_csv_exists(self):
         assert BLENDING_CSV.exists(), f"Missing: {BLENDING_CSV}"
 
+    def test_blending_xlsx_exists(self):
+        assert BLENDING_FILE.exists(), f"Missing: {BLENDING_FILE}"
+
 
 # ── read_data_file smoke tests ───────────────────────────────────────────────
 class TestReadExampleFiles:
@@ -92,7 +96,13 @@ class TestReadExampleFiles:
         resp = run(_handle_read_data_file({"filepath": str(TRANSPORT_FILE)}))
         assert not is_error(resp)
         t = text(resp)
-        assert any(kw in t for kw in ["supply", "demand", "cost", "rows", "columns"])
+        assert any(kw in t for kw in ["origins", "destinations", "costs", "rows", "columns"])
+
+    def test_read_blending_xlsx(self):
+        resp = run(_handle_read_data_file({"filepath": str(BLENDING_FILE)}))
+        assert not is_error(resp)
+        t = text(resp)
+        assert any(kw in t for kw in ["variables", "constraints", "objective", "rows", "columns"])
 
     def test_read_blending_csv(self):
         resp = run(_handle_read_data_file({"filepath": str(BLENDING_CSV)}))
@@ -166,6 +176,52 @@ class TestSolveFromFile:
         t = text(resp).lower()
         assert "error" in t or "not found" in t
 
+    def test_transport_solve_from_file(self, tmp_path):
+        out = str(tmp_path / "transport_result.xlsx")
+        resp = run(
+            _handle_solve_from_file(
+                {
+                    "filepath": str(TRANSPORT_FILE),
+                    "output_path": out,
+                    "problem_type": "transport",
+                }
+            )
+        )
+        t = text(resp)
+        assert "Traceback" not in t
+        assert len(t) > 10
+
+    def test_blending_solve_from_file(self, tmp_path):
+        out = str(tmp_path / "blending_result.xlsx")
+        resp = run(
+            _handle_solve_from_file(
+                {
+                    "filepath": str(BLENDING_FILE),
+                    "output_path": out,
+                    "problem_type": "generic_lp",
+                }
+            )
+        )
+        t = text(resp)
+        assert "Traceback" not in t
+        assert len(t) > 10
+
+    def test_nurse_solve_from_file(self, tmp_path):
+        out = str(tmp_path / "nurse_result.xlsx")
+        resp = run(
+            _handle_solve_from_file(
+                {
+                    "filepath": str(NURSE_FILE),
+                    "output_path": out,
+                    "problem_type": "scheduling",
+                }
+            )
+        )
+        t = text(resp)
+        assert "Traceback" not in t
+        # infeasible with IIS explanation is a valid result
+        assert len(t) > 10
+
     def test_solve_from_file_state_populated_on_success(self, tmp_path):
         """After a successful solve the server state should hold a result."""
         out = str(tmp_path / "result.xlsx")
@@ -178,8 +234,6 @@ class TestSolveFromFile:
                 }
             )
         )
-        # State may or may not be populated depending on whether the xlsx was
-        # parseable as a portfolio model — either way, no crash
         # If state is populated, last_result should be a SolverResult
         if _state.last_result is not None:
             from sage_core.models import SolverResult
