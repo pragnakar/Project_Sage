@@ -42,16 +42,16 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from pydantic import ValidationError
 
-from sage_core.builder import (
+from sage_solver_core.builder import (
     build_from_lp,
     build_from_mip,
     build_from_portfolio,
     build_from_scheduling,
 )
-from sage_core.models import SAGEError
-from sage_core.explainer import explain_infeasibility, explain_result
-from sage_core.fileio import dataframe_to_model, generate_template, read_data, read_data_from_bytes, write_results_excel
-from sage_core.models import (
+from sage_solver_core.models import SAGEError
+from sage_solver_core.explainer import explain_infeasibility, explain_result
+from sage_solver_core.fileio import dataframe_to_model, generate_template, read_data, read_data_from_bytes, write_results_excel
+from sage_solver_core.models import (
     IISResult,
     LPModel,
     MIPModel,
@@ -60,10 +60,10 @@ from sage_core.models import (
     SolverInput,
     SolverResult,
 )
-from sage_core.relaxation import suggest_relaxations
-from sage_core.solver import solve
+from sage_solver_core.relaxation import suggest_relaxations
+from sage_solver_core.solver import solve
 
-from sage_mcp.local_io import default_output_dir, output_path_for, resolve_path
+from sage_solver_mcp.local_io import default_output_dir, output_path_for, resolve_path
 
 logger = logging.getLogger(__name__)
 

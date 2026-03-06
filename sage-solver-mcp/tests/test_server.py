@@ -27,7 +27,7 @@ from pathlib import Path
 import pytest
 
 # Reset server state before each test so tests are independent
-from sage_mcp import server as _server_module
+from sage_solver_mcp import server as _server_module
 
 
 def _reset_state() -> None:

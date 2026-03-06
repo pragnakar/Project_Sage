@@ -26,8 +26,8 @@ SAGE is built as three packages from day one to support both local and cloud dep
 
 ```
 sage/
-├── sage-core/          ← The engine (80% of intelligence)
-│   ├── sage_core/
+├── sage-solver-core/          ← The engine (80% of intelligence)
+│   ├── sage_solver_core/
 │   │   ├── __init__.py
 │   │   ├── models.py        ← Problem type schemas (Pydantic)
 │   │   ├── builder.py       ← Structured definition → mathematical model
@@ -43,8 +43,8 @@ sage/
 │   │   └── test_integration.py
 │   └── pyproject.toml
 │
-├── sage-mcp/            ← V1: Local MCP server
-│   ├── sage_mcp/
+├── sage-solver-mcp/            ← V1: Local MCP server
+│   ├── sage_solver_mcp/
 │   │   ├── __init__.py
 │   │   ├── server.py        ← MCP tool definitions
 │   │   └── local_io.py      ← Local filesystem bridge
@@ -75,11 +75,11 @@ sage/
 
 ### 2.2 Design Principle: Clean Separation
 
-**sage-core** has ZERO opinions about deployment. It takes Python objects in and returns Python objects out. No HTTP, no MCP protocol, no file system calls, no `print()` statements. Every function takes data as arguments and returns structured results.
+**sage-solver-core** has ZERO opinions about deployment. It takes Python objects in and returns Python objects out. No HTTP, no MCP protocol, no file system calls, no `print()` statements. Every function takes data as arguments and returns structured results.
 
 This means:
-- sage-mcp imports sage-core, reads local files, passes DataFrames to core, gets results back, writes local files
-- sage-cloud imports sage-core, receives uploads via HTTP, passes DataFrames to core, gets results back, returns via API
+- sage-solver-mcp imports sage-solver-core, reads local files, passes DataFrames to core, gets results back, writes local files
+- sage-cloud imports sage-solver-core, receives uploads via HTTP, passes DataFrames to core, gets results back, returns via API
 
 The core never changes between versions.
 
@@ -91,9 +91,9 @@ User speaks to Claude Desktop / Claude Code / Cursor
     │ MCP Protocol (stdin/stdout, local subprocess)
     │
 ┌───▼──────────────────────────────────┐
-│   sage-mcp (local MCP server)        │
+│   sage-solver-mcp (local MCP server)        │
 │   ┌────────────────────────────────┐ │
-│   │         sage-core              │ │
+│   │         sage-solver-core              │ │
 │   │  Model Builder → Solver →     │ │
 │   │  Explainer → File I/O         │ │
 │   └────────────────────────────────┘ │
@@ -111,7 +111,7 @@ User speaks to ChatGPT / Claude / any client
     │
 ┌───▼──────────────────────────────────┐
 │   sage-cloud (FastAPI on cloud)      │
-│   Auth → Queue → sage-core → S3     │
+│   Auth → Queue → sage-solver-core → S3     │
 │   Multi-tenant, rate-limited         │
 └──────────────────────────────────────┘
 ```
@@ -122,7 +122,7 @@ V2 unlocks ChatGPT integration (which requires remote MCP servers via SSE).
 
 ## 3. Components — Detailed Specification
 
-### 3.1 sage-core/models.py — Problem Type Schemas
+### 3.1 sage-solver-core/models.py — Problem Type Schemas
 
 Use Pydantic v2 models. These schemas define the structured input the LLM must produce.
 
@@ -221,7 +221,7 @@ class SchedulingModel(BaseModel):
     min_rest_hours: float | None = 8.0
 ```
 
-### 3.2 sage-core/builder.py — Model Builder
+### 3.2 sage-solver-core/builder.py — Model Builder
 
 This module translates domain-specific models (Portfolio, Scheduling) into generic LP/MIP models. It also validates models and catches common errors before sending to the solver.
 
@@ -276,7 +276,7 @@ class SolverInput(BaseModel):
     mip_gap_tolerance: float | None = 0.0001
 ```
 
-### 3.3 sage-core/solver.py — Solver Wrapper
+### 3.3 sage-solver-core/solver.py — Solver Wrapper
 
 **Primary solver:** HiGHS (via `highspy` Python bindings)
 - MIT licensed
@@ -344,7 +344,7 @@ class IISResult(BaseModel):
     explanation: str  # human-readable explanation
 ```
 
-### 3.4 sage-core/fileio.py — Excel/CSV Handler
+### 3.4 sage-solver-core/fileio.py — Excel/CSV Handler
 
 This is strategically important. Most enterprise optimization data lives in Excel. SAGE meets users where they are.
 
@@ -432,7 +432,7 @@ def dataframe_to_model(
     """
 ```
 
-### 3.5 sage-core/explainer.py — Result Narrator
+### 3.5 sage-solver-core/explainer.py — Result Narrator
 
 Translates solver results into natural language suitable for LLM to relay to user.
 
@@ -469,7 +469,7 @@ def explain_infeasibility(
     """
 ```
 
-### 3.6 sage-core/relaxation.py — Constraint Relaxation Suggester
+### 3.6 sage-solver-core/relaxation.py — Constraint Relaxation Suggester
 
 ```python
 def suggest_relaxations(
@@ -507,7 +507,7 @@ class RelaxationSuggestion(BaseModel):
 
 ## 4. MCP Server — Tool Definitions
 
-### 4.1 sage-mcp/server.py
+### 4.1 sage-solver-mcp/server.py
 
 The MCP server exposes these tools. Tool names are semantic — the LLM doesn't need to know about HiGHS.
 
@@ -571,7 +571,7 @@ For Claude Desktop, users add this to their config:
   "mcpServers": {
     "sage": {
       "command": "uvx",
-      "args": ["sage-mcp"],
+      "args": ["sage-solver-mcp"],
       "env": {}
     }
   }
@@ -585,7 +585,7 @@ Or if installed via pip:
   "mcpServers": {
     "sage": {
       "command": "python",
-      "args": ["-m", "sage_mcp"],
+      "args": ["-m", "sage_solver_mcp"],
       "env": {}
     }
   }
@@ -596,7 +596,7 @@ Or if installed via pip:
 
 ## 5. Dependencies
 
-### Core Dependencies (sage-core)
+### Core Dependencies (sage-solver-core)
 ```
 highspy >= 1.7.0        # HiGHS solver Python bindings
 ortools >= 9.9          # Google OR-Tools
@@ -606,10 +606,10 @@ pydantic >= 2.5         # Schema validation
 numpy >= 1.24           # Numerical operations
 ```
 
-### MCP Dependencies (sage-mcp)
+### MCP Dependencies (sage-solver-mcp)
 ```
 mcp >= 1.0              # MCP Python SDK
-sage-core               # Local dependency
+sage-solver-core               # Local dependency
 ```
 
 ### Cloud Dependencies (sage-cloud, V2)
@@ -618,7 +618,7 @@ fastapi >= 0.110
 uvicorn >= 0.27
 python-multipart        # File uploads
 boto3                   # S3 (if AWS)
-sage-core               # Same core
+sage-solver-core               # Same core
 ```
 
 ---
@@ -648,7 +648,7 @@ sage-core               # Same core
 
 ### Phase 4: MCP Server (Hours 31-38)
 
-13. **Implement sage-mcp/server.py** — all 7 MCP tools, proper error handling, structured responses
+13. **Implement sage-solver-mcp/server.py** — all 7 MCP tools, proper error handling, structured responses
 14. **Implement local_io.py** — filesystem bridge (resolve paths, check file existence, handle permissions)
 15. **End-to-end testing** — connect to Claude Desktop, run full conversation flows
 16. **Edge case handling** — solver timeout, malformed input, file not found, unsupported formats
@@ -813,7 +813,7 @@ Example: If a column is missing from an Excel file:
 
 ### Day 1 After MVP
 - Push to GitHub with MIT license
-- Publish to PyPI: `pip install sage-mcp`
+- Publish to PyPI: `pip install sage-solver-mcp`
 - Publish to official MCP Registry (registry.modelcontextprotocol.io)
 - Submit to Claude Desktop Extensions directory (Anthropic)
 - List on PulseMCP, mcp.so, mcpmarket.com
@@ -842,7 +842,7 @@ Example: If a column is missing from an Excel file:
 | Excel library | openpyxl | Read/write, formatting, no Excel installation needed |
 | Data manipulation | pandas | Universal, handles messy data well |
 | MCP SDK | Official Python SDK | Standard, maintained by Anthropic |
-| Package manager | uv/pip | `uvx sage-mcp` for zero-config install |
+| Package manager | uv/pip | `uvx sage-solver-mcp` for zero-config install |
 | Quadratic programming | HiGHS QP | Integrated in HiGHS, no separate solver needed |
 
 ---
@@ -867,7 +867,7 @@ Example: If a column is missing from an Excel file:
 
 The MVP is done when:
 
-1. A user can install with `pip install sage-mcp` and add one config block to Claude Desktop
+1. A user can install with `pip install sage-solver-mcp` and add one config block to Claude Desktop
 2. The user can say "read my Excel file and optimize my portfolio" and get a certified optimal solution written back to Excel
 3. The user can hit an infeasible problem and get a clear explanation of why + actionable relaxation suggestions
 4. The user can ask "explain the sensitivity analysis" and get a narrative about shadow prices and binding constraints

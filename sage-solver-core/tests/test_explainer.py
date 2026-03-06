@@ -13,14 +13,14 @@ from __future__ import annotations
 
 import pytest
 
-from sage_core.builder import (
+from sage_solver_core.builder import (
     build_from_lp,
     build_from_mip,
     build_from_portfolio,
     build_from_scheduling,
 )
-from sage_core.explainer import explain_infeasibility, explain_result
-from sage_core.models import (
+from sage_solver_core.explainer import explain_infeasibility, explain_result
+from sage_solver_core.models import (
     Asset,
     IISResult,
     LPModel,
@@ -36,7 +36,7 @@ from sage_core.models import (
     SolverResult,
     Worker,
 )
-from sage_core.solver import solve
+from sage_solver_core.solver import solve
 
 
 # ---------------------------------------------------------------------------

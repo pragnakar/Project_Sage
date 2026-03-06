@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from sage_core.models import (
+from sage_solver_core.models import (
     Asset,
     DataValidationError,
     FileIOError,

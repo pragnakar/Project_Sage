@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
-from sage_core.models import (
+from sage_solver_core.models import (
     IISResult,
     LPModel,
     MIPModel,

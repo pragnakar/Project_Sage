@@ -26,8 +26,8 @@ from __future__ import annotations
 
 import pytest
 
-from sage_core.models import SolverInput, SolverResult
-from sage_core.solver import compute_iis, solve
+from sage_solver_core.models import SolverInput, SolverResult
+from sage_solver_core.solver import compute_iis, solve
 
 
 # ===========================================================================
@@ -574,7 +574,7 @@ class TestComputeIIS:
 
 class TestSolverErrors:
     def test_unsupported_solver_raises(self) -> None:
-        from sage_core.models import SolverError
+        from sage_solver_core.models import SolverError
 
         with pytest.raises(SolverError, match="Unsupported solver"):
             solve(make_simple_lp(), solver="cplex")
