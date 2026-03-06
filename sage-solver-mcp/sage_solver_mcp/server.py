@@ -320,6 +320,11 @@ async def list_tools() -> list[types.Tool]:
                 "returns the minimal infeasibility certificate (IIS)."
             ),
             inputSchema=_SOLVE_OPTIMIZATION_SCHEMA,
+            annotations=types.ToolAnnotations(
+                readOnlyHint=False,
+                destructiveHint=False,
+                idempotentHint=True,
+            ),
         ),
         types.Tool(
             name="read_data_file",
@@ -330,6 +335,10 @@ async def list_tools() -> list[types.Tool]:
                 "solve_from_file to confirm the data looks right."
             ),
             inputSchema=_READ_DATA_FILE_SCHEMA,
+            annotations=types.ToolAnnotations(
+                readOnlyHint=True,
+                idempotentHint=True,
+            ),
         ),
         types.Tool(
             name="solve_from_file",
@@ -339,6 +348,10 @@ async def list_tools() -> list[types.Tool]:
                 "Returns the solution summary and the path to the output file."
             ),
             inputSchema=_SOLVE_FROM_FILE_SCHEMA,
+            annotations=types.ToolAnnotations(
+                readOnlyHint=False,
+                destructiveHint=True,
+            ),
         ),
         types.Tool(
             name="explain_solution",
@@ -348,6 +361,10 @@ async def list_tools() -> list[types.Tool]:
                 "values and binding constraints, or 'detailed' for full sensitivity analysis."
             ),
             inputSchema=_EXPLAIN_SOLUTION_SCHEMA,
+            annotations=types.ToolAnnotations(
+                readOnlyHint=True,
+                idempotentHint=True,
+            ),
         ),
         types.Tool(
             name="check_feasibility",
@@ -357,6 +374,11 @@ async def list_tools() -> list[types.Tool]:
                 "conflicting constraint set (IIS) and ranked relaxation suggestions."
             ),
             inputSchema=_CHECK_FEASIBILITY_SCHEMA,
+            annotations=types.ToolAnnotations(
+                readOnlyHint=False,
+                destructiveHint=False,
+                idempotentHint=True,
+            ),
         ),
         types.Tool(
             name="generate_template",
@@ -367,6 +389,10 @@ async def list_tools() -> list[types.Tool]:
                 "and example rows — ready for the user to fill in their data."
             ),
             inputSchema=_GENERATE_TEMPLATE_SCHEMA,
+            annotations=types.ToolAnnotations(
+                readOnlyHint=False,
+                destructiveHint=True,
+            ),
         ),
         types.Tool(
             name="suggest_relaxations",
@@ -378,6 +404,10 @@ async def list_tools() -> list[types.Tool]:
                 "Call solve_optimization or check_feasibility first."
             ),
             inputSchema=_SUGGEST_RELAXATIONS_SCHEMA,
+            annotations=types.ToolAnnotations(
+                readOnlyHint=True,
+                idempotentHint=True,
+            ),
         ),
     ]
 

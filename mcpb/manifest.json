@@ -1,0 +1,86 @@
+{
+  "manifest_version": "0.4",
+  "name": "sage-solver-mcp",
+  "display_name": "SAGE \u2014 Solver-Augmented Grounding Engine",
+  "version": "0.1.2",
+  "description": "LLM-native optimization solver: LP, MIP, portfolio & scheduling via HiGHS/OR-Tools.",
+  "long_description": "SAGE gives Claude certified mathematical optimization capabilities using open-source solvers.\n\nSolve linear programs (LP), mixed-integer programs (MIP), portfolio optimization, and workforce scheduling problems directly from conversation. SAGE returns optimal solutions with variable values, objective values, sensitivity analysis, and plain-English explanations.\n\nWhen a problem is infeasible, SAGE computes the Irreducible Infeasible Subsystem (IIS) \u2014 the minimal conflicting constraint set \u2014 and ranks relaxation suggestions so you can fix the model quickly.\n\nAll computation runs locally. No data leaves your machine.",
+  "author": {
+    "name": "Pragnakar Pedapenki",
+    "email": "pragnakar@gmail.com",
+    "url": "https://github.com/pragnakar"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pragnakar/Project_Sage.git"
+  },
+  "homepage": "https://github.com/pragnakar/Project_Sage",
+  "documentation": "https://github.com/pragnakar/Project_Sage/blob/main/README.md",
+  "support": "https://github.com/pragnakar/Project_Sage/issues",
+  "license": "MIT",
+  "keywords": [
+    "optimization",
+    "linear-programming",
+    "mip",
+    "highs",
+    "operations-research",
+    "solver"
+  ],
+  "privacy_policies": [
+    "https://github.com/pragnakar/Project_Sage/blob/main/sage-solver-mcp/README.md#privacy-policy"
+  ],
+  "server": {
+    "type": "uv",
+    "entry_point": "src/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--project",
+        "${__dirname}",
+        "python",
+        "${__dirname}/src/server.py"
+      ]
+    }
+  },
+  "tools": [
+    {
+      "name": "solve_optimization",
+      "description": "Solve an LP, MIP, portfolio, or scheduling optimization problem. Returns optimal variable values, objective, solve time, and plain-English explanation. Returns IIS if infeasible."
+    },
+    {
+      "name": "read_data_file",
+      "description": "Read an Excel (.xlsx) or CSV file and return a structured preview of its sheets, columns, and first 5 rows."
+    },
+    {
+      "name": "solve_from_file",
+      "description": "Read data from an Excel/CSV file, solve the optimization model, and write results to a new Excel file. Returns solution summary and output path."
+    },
+    {
+      "name": "explain_solution",
+      "description": "Get a natural-language explanation of the most recent solve result at brief, standard, or detailed depth."
+    },
+    {
+      "name": "check_feasibility",
+      "description": "Check if an optimization problem has a feasible solution. If infeasible, returns the IIS and ranked relaxation suggestions."
+    },
+    {
+      "name": "generate_template",
+      "description": "Generate a blank analyst-friendly Excel template for portfolio, scheduling, transport, or generic_lp problem types."
+    },
+    {
+      "name": "suggest_relaxations",
+      "description": "For the most recent infeasible result, return ranked constraint relaxations (amount, percentage, trade-off explanation) that restore feasibility."
+    }
+  ],
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "python": ">=3.11"
+    }
+  }
+}
