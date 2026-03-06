@@ -9,13 +9,13 @@
     "id": "pragnakar/Project_Sage",
     "subfolder": "sage-solver-mcp"
   },
-  "version": "0.1.2",
+  "version": "0.1.3",
   "packages": [
     {
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "sage-solver-mcp",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio",

@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "sage-solver-mcp",
   "display_name": "SAGE \u2014 Solver-Augmented Grounding Engine",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "LLM-native optimization solver: LP, MIP, portfolio & scheduling via HiGHS/OR-Tools.",
   "long_description": "SAGE gives Claude certified mathematical optimization capabilities using open-source solvers.\n\nSolve linear programs (LP), mixed-integer programs (MIP), portfolio optimization, and workforce scheduling problems directly from conversation. SAGE returns optimal solutions with variable values, objective values, sensitivity analysis, and plain-English explanations.\n\nWhen a problem is infeasible, SAGE computes the Irreducible Infeasible Subsystem (IIS) \u2014 the minimal conflicting constraint set \u2014 and ranks relaxation suggestions so you can fix the model quickly.\n\nAll computation runs locally. No data leaves your machine.",
   "author": {

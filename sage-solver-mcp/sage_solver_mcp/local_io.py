@@ -34,14 +34,16 @@ def resolve_path(filepath: str) -> Path:
         # Resolve relative to cwd (the user's working directory when they
         # started the MCP server / invoked the tool).
         path = Path.cwd() / path
-    path = path.resolve()
+    # Check existence before resolving symlinks so the error message shows
+    # the user-supplied path, not the macOS firmlink expansion
+    # (e.g. /home → /System/Volumes/Data/home).
     if not path.exists():
         raise FileNotFoundError(
             f"File not found: {path}\n"
             f"Original path given: {filepath!r}\n"
             f"Working directory: {Path.cwd()}"
         )
-    return path
+    return path.resolve()
 
 
 def ensure_output_dir(filepath: str | Path) -> Path:
@@ -125,5 +127,13 @@ def output_path_for(input_filepath: str, suffix: str = "_optimized") -> Path:
 
 
 def default_output_dir() -> Path:
-    """Return the user's current working directory as the default output location."""
-    return Path.cwd().resolve()
+    """Return a writable directory for output files.
+
+    Falls back to the user's home directory when the current working directory
+    is root or not writable (common when the MCP server is launched by a desktop
+    app with CWD set to /).
+    """
+    cwd = Path.cwd().resolve()
+    if str(cwd) == "/" or not os.access(cwd, os.W_OK):
+        return Path.home().resolve()
+    return cwd

@@ -13,8 +13,9 @@ validation and serialization.
 
 from __future__ import annotations
 
+import json
 import logging
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -129,13 +130,24 @@ class LPVariable(BaseModel):
 
     Attributes:
         name: Unique variable identifier.
-        lower_bound: Minimum value (default 0; use None for -∞).
-        upper_bound: Maximum value (default None for +∞).
+        lower_bound: Minimum value (default 0; use None for -∞). Alias: ``lb``.
+        upper_bound: Maximum value (default None for +∞). Alias: ``ub``.
     """
 
     name: str = Field(..., min_length=1, description="Unique variable name")
     lower_bound: float | None = Field(default=0.0, description="Lower bound (None = -inf)")
     upper_bound: float | None = Field(default=None, description="Upper bound (None = +inf)")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_aliases(cls, values: Any) -> Any:
+        """Accept lb/ub as aliases for lower_bound/upper_bound."""
+        if isinstance(values, dict):
+            if "lb" in values and "lower_bound" not in values:
+                values["lower_bound"] = values.pop("lb")
+            if "ub" in values and "upper_bound" not in values:
+                values["upper_bound"] = values.pop("ub")
+        return values
 
     @model_validator(mode="after")
     def bounds_are_consistent(self) -> "LPVariable":
@@ -157,8 +169,8 @@ class LinearConstraint(BaseModel):
 
     Attributes:
         name: Unique constraint identifier.
-        coefficients: Mapping of variable name → coefficient value.
-        sense: Constraint direction.
+        coefficients: Mapping of variable name → coefficient value. Alias: ``expression``.
+        sense: Constraint direction (``<=``, ``>=``, ``==``). Alias: ``operator``.
         rhs: Right-hand side scalar.
     """
 
@@ -168,6 +180,17 @@ class LinearConstraint(BaseModel):
     )
     sense: Literal["<=", ">=", "=="] = Field(..., description="Constraint direction")
     rhs: float = Field(..., description="Right-hand side value")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_aliases(cls, values: Any) -> Any:
+        """Accept operator/expression as aliases for sense/coefficients."""
+        if isinstance(values, dict):
+            if "operator" in values and "sense" not in values:
+                values["sense"] = values.pop("operator")
+            if "expression" in values and "coefficients" not in values:
+                values["coefficients"] = values.pop("expression")
+        return values
 
     @field_validator("coefficients")
     @classmethod
@@ -182,7 +205,7 @@ class LinearObjective(BaseModel):
     """The objective function for an LP/MIP problem.
 
     Attributes:
-        sense: Whether to minimize or maximize.
+        sense: Whether to minimize or maximize. Alias: ``direction``.
         coefficients: Mapping of variable name → objective coefficient.
     """
 
@@ -190,6 +213,15 @@ class LinearObjective(BaseModel):
     coefficients: dict[str, float] = Field(
         ..., description="variable_name → objective coefficient"
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_aliases(cls, values: Any) -> Any:
+        """Accept direction as alias for sense."""
+        if isinstance(values, dict):
+            if "direction" in values and "sense" not in values:
+                values["sense"] = values.pop("direction")
+        return values
 
     @field_validator("coefficients")
     @classmethod
@@ -218,6 +250,19 @@ class LPModel(BaseModel):
         default_factory=list, description="Linear constraints"
     )
     objective: LinearObjective = Field(..., description="Objective function")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_json_strings(cls, values: Any) -> Any:
+        """Parse fields that arrive as JSON strings (MCP transport may serialize nested objects)."""
+        if isinstance(values, dict):
+            for field in ("variables", "constraints", "objective"):
+                if field in values and isinstance(values[field], str):
+                    try:
+                        values[field] = json.loads(values[field])
+                    except (ValueError, TypeError):
+                        pass
+        return values
 
     @field_validator("variables")
     @classmethod
@@ -253,8 +298,8 @@ class MIPVariable(BaseModel):
 
     Attributes:
         name: Unique variable identifier.
-        lower_bound: Minimum value (default 0; use None for -∞).
-        upper_bound: Maximum value (default None for +∞; binary forces 1).
+        lower_bound: Minimum value (default 0; use None for -∞). Alias: ``lb``.
+        upper_bound: Maximum value (default None for +∞; binary forces 1). Alias: ``ub``.
         var_type: Variable type.
     """
 
@@ -264,6 +309,17 @@ class MIPVariable(BaseModel):
     var_type: Literal["continuous", "integer", "binary"] = Field(
         default="continuous", description="Variable integrality type"
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_aliases(cls, values: Any) -> Any:
+        """Accept lb/ub as aliases for lower_bound/upper_bound."""
+        if isinstance(values, dict):
+            if "lb" in values and "lower_bound" not in values:
+                values["lower_bound"] = values.pop("lb")
+            if "ub" in values and "upper_bound" not in values:
+                values["upper_bound"] = values.pop("ub")
+        return values
 
     @model_validator(mode="after")
     def binary_bounds_and_consistency(self) -> "MIPVariable":
@@ -320,6 +376,19 @@ class MIPModel(BaseModel):
         le=1.0,
         description="Relative MIP optimality gap tolerance",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_json_strings(cls, values: Any) -> Any:
+        """Parse fields that arrive as JSON strings (MCP transport may serialize nested objects)."""
+        if isinstance(values, dict):
+            for field in ("variables", "constraints", "objective"):
+                if field in values and isinstance(values[field], str):
+                    try:
+                        values[field] = json.loads(values[field])
+                    except (ValueError, TypeError):
+                        pass
+        return values
 
     @field_validator("variables")
     @classmethod
@@ -437,6 +506,19 @@ class PortfolioModel(BaseModel):
         default_factory=PortfolioConstraints, description="Allocation constraints"
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_json_strings(cls, values: Any) -> Any:
+        """Parse fields that arrive as JSON strings (MCP transport may serialize nested objects)."""
+        if isinstance(values, dict):
+            for field in ("assets", "covariance_matrix", "constraints"):
+                if field in values and isinstance(values[field], str):
+                    try:
+                        values[field] = json.loads(values[field])
+                    except (ValueError, TypeError):
+                        pass
+        return values
+
     @model_validator(mode="after")
     def covariance_dimensions_match(self) -> "PortfolioModel":
         """Ensure the covariance matrix is n×n where n = number of assets."""
@@ -522,6 +604,20 @@ class SchedulingModel(BaseModel):
 
     workers: list[Worker] = Field(..., min_length=1, description="Available workers")
     shifts: list[Shift] = Field(..., min_length=1, description="Shifts to cover")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_json_strings(cls, values: Any) -> Any:
+        """Parse fields that arrive as JSON strings (MCP transport may serialize nested objects)."""
+        if isinstance(values, dict):
+            for field in ("workers", "shifts"):
+                if field in values and isinstance(values[field], str):
+                    try:
+                        values[field] = json.loads(values[field])
+                    except (ValueError, TypeError):
+                        pass
+        return values
+
     planning_horizon_days: int = Field(
         default=7, ge=1, description="Number of days in the planning horizon"
     )

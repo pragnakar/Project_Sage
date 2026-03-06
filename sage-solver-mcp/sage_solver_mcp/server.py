@@ -118,9 +118,18 @@ def _detect_model_type(data: dict[str, Any]) -> str:
     if "workers" in data and "shifts" in data:
         return "scheduling"
     if "variables" in data and "constraints" in data:
-        # Distinguish MIP vs LP by var_type field presence
+        # Distinguish MIP vs LP by var_type field presence.
+        # variables may still be a JSON string at this point (parsed later by model_validator).
         vars_ = data.get("variables", [])
-        if vars_ and any(v.get("var_type", "continuous") != "continuous" for v in vars_):
+        if isinstance(vars_, str):
+            try:
+                vars_ = json.loads(vars_)
+            except (ValueError, TypeError):
+                vars_ = []
+        if vars_ and any(
+            isinstance(v, dict) and v.get("var_type", "continuous") != "continuous"
+            for v in vars_
+        ):
             return "mip"
         return "lp"
 
@@ -181,9 +190,66 @@ _SOLVE_OPTIMIZATION_SCHEMA: dict[str, Any] = {
             "type": "string",
             "enum": ["lp", "mip", "portfolio", "scheduling"],
             "description": "Optional explicit problem type discriminator.",
-        }
+        },
+        # ── LP / MIP fields ────────────────────────────────────────────────
+        "name": {
+            "type": "string",
+            "description": "Model name (required for LP/MIP).",
+        },
+        "description": {"type": "string"},
+        "variables": {
+            "type": "array",
+            "description": (
+                "Decision variables for LP/MIP. Each item: "
+                "{name, lower_bound (or lb), upper_bound (or ub), var_type?}."
+            ),
+            "items": {"type": "object"},
+        },
+        "constraints": {
+            "type": "array",
+            "description": (
+                "Linear constraints for LP/MIP. Each item: "
+                "{name, coefficients (or expression), sense (or operator: <=|>=|==), rhs}."
+            ),
+            "items": {"type": "object"},
+        },
+        "objective": {
+            "type": "object",
+            "description": (
+                "Objective function for LP/MIP: "
+                "{sense (or direction): minimize|maximize, coefficients: {var_name: coeff}}."
+            ),
+        },
+        "time_limit_seconds": {"type": "number"},
+        "mip_gap_tolerance": {"type": "number"},
+        # ── Portfolio fields ───────────────────────────────────────────────
+        "assets": {
+            "type": "array",
+            "description": "Portfolio assets. Each item: {name, expected_return, sector?}.",
+            "items": {"type": "object"},
+        },
+        "covariance_matrix": {
+            "type": "array",
+            "description": "n×n covariance matrix for portfolio optimization.",
+            "items": {"type": "array", "items": {"type": "number"}},
+        },
+        "risk_aversion": {
+            "type": "number",
+            "description": "Risk aversion coefficient λ for portfolio (default 1.0).",
+        },
+        # ── Scheduling fields ──────────────────────────────────────────────
+        "workers": {
+            "type": "array",
+            "description": "Workers for scheduling. Each item: {name, max_hours, skills?, unavailable_shifts?}.",
+            "items": {"type": "object"},
+        },
+        "shifts": {
+            "type": "array",
+            "description": "Shifts for scheduling. Each item: {name, duration_hours, required_workers, required_skills?}.",
+            "items": {"type": "object"},
+        },
+        "planning_horizon_days": {"type": "integer"},
     },
-    "additionalProperties": True,
 }
 
 # ---------------------------------------------------------------------------
@@ -264,9 +330,22 @@ _CHECK_FEASIBILITY_SCHEMA: dict[str, Any] = {
         "problem_type": {
             "type": "string",
             "enum": ["lp", "mip", "portfolio", "scheduling"],
-        }
+        },
+        "name": {"type": "string"},
+        "variables": {
+            "type": "array",
+            "items": {"type": "object"},
+        },
+        "constraints": {
+            "type": "array",
+            "items": {"type": "object"},
+        },
+        "objective": {"type": "object"},
+        "assets": {"type": "array", "items": {"type": "object"}},
+        "covariance_matrix": {"type": "array", "items": {"type": "array"}},
+        "workers": {"type": "array", "items": {"type": "object"}},
+        "shifts": {"type": "array", "items": {"type": "object"}},
     },
-    "additionalProperties": True,
 }
 
 # ---------------------------------------------------------------------------
