@@ -1,4 +1,6 @@
-# sage-mcp
+# sage-solver-mcp
+
+mcp-name: io.github.pragnakar/sage-solver-mcp
 
 Local MCP server for SAGE (Solver-Augmented Generation Engine).
 

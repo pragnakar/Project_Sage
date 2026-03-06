@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sage-solver-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "SAGE MCP server — local MCP server exposing optimization tools to LLMs via Claude Desktop"
 readme = "README.md"
 license = { text = "MIT" }
@@ -25,7 +25,7 @@ classifiers = [
 ]
 dependencies = [
     "mcp>=1.0",
-    "sage-solver-core>=0.1.0",
+    "sage-solver-core>=0.1.1",
 ]
 
 [project.scripts]

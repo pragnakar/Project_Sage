@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sage-solver-core"
-version = "0.1.0"
+version = "0.1.1"
 description = "SAGE core engine — solver wrappers, model building, file I/O, and result explanation"
 readme = "README.md"
 license = { text = "MIT" }
