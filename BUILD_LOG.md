@@ -1,5 +1,27 @@
 # SAGE Build Log
 
+## Ship Summary — v0.1.0
+
+**Date:** 2026-03-05
+**Total tests:** 459 passing, 0 failing
+**Total commits:** 32
+**Packages:** sage-core 0.1.0, sage-mcp 0.1.0
+**Bugs caught by verification (all phases):**
+1. HiGHS float `inf` → `None` conversion (Phase 2)
+2. Binary variable upper_bound set to 0 by mistake (Phase 2)
+3. Scheduling consecutive_days constraint off-by-one (Phase 5)
+4. MCP server entry point pointing to `__main__:main` instead of `server:main` (Phase 6)
+5. `read_data()` called with bytes instead of filepath (Phase 6)
+6. `ValidationError` not caught in handler direct calls (Phase 6)
+7. Example xlsx column/sheet names not matching fileio.py parsers (Phase 7 verification)
+8. `[project.urls]` in pyproject.toml captured `dependencies` as a URL key — broke `pip install -e` (Phase 7 verification)
+9. `==` Excel formula issue — equality constraints in generic_lp must be split into `>=`/`<=` pair (Phase 7 verification)
+
+**Lines of code (production):** 5,861 (11 files across sage-core + sage-mcp)
+**Example problems:** portfolio (5 assets, optimal), nurse scheduling (8 nurses, intentionally infeasible), transport routing (3 warehouses → 5 stores, optimal $2,472), blending (6 ingredients, optimal $23.47/100kg)
+
+---
+
 ## Session Tracker
 
 | Session | Date | Phase | Duration | Credits Used (est.) | Notes |
@@ -14,6 +36,7 @@
 | 8       | 2026-03-05 | Phase 5 | Session 8 | — | explainer.py + relaxation.py complete — 62 new tests, 382 total; builder consecutive_days bug fix |
 | 9       | 2026-03-05 | Phase 6 | Session 9 | — | sage-mcp complete — server.py (7 tools), local_io.py, __main__.py, 53 tests, 435 total; entry point fix |
 | 10      | 2026-03-05 | Phase 7 | Session 10 | — | Polish + v0.1.0 — 4 example files, 19 smoke tests, README (174 lines), CONTRIBUTING.md, .gitignore, metadata; 454/454 tests; tagged v0.1.0 |
+| 11      | 2026-03-05 | Phase 7 verification | Session 11 | — | Ship-readiness check: found and fixed 4 blockers (example column/sheet names, pyproject.toml [project.urls] TOML bug); 459/459 tests; pip install works; re-tagged v0.1.0 |
 
 Update this table at the start and end of each session.
 
@@ -21,9 +44,9 @@ Update this table at the start and end of each session.
 
 ## Current Status
 
-**Active Phase:** COMPLETE — v0.1.0 released
+**Active Phase:** COMPLETE — v0.1.0 VERIFIED AND SHIPPED
 **Active Branch:** main (tagged v0.1.0)
-**Last Completed Task:** Phase 7 — 4 examples, 19 smoke tests, README, CONTRIBUTING, .gitignore, metadata; 454/454 passing; merged develop → main; tagged v0.1.0
+**Last Completed Task:** Phase 7 final verification — 4 ship blockers caught and fixed; 459/459 tests; pip install -e works; all 4 examples solve end-to-end; re-tagged v0.1.0
 **Next Task:** Phase 8 (sage-cloud FastAPI) or PyPI publish
 **Blockers:** None
 
