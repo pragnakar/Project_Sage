@@ -1,0 +1,28 @@
+{
+  "_comment": "Add this configuration to your Claude Desktop claude_desktop_config.json file under 'mcpServers'.",
+  "_instructions": [
+    "1. Install sage-mcp: pip install sage-mcp  (or: uvx sage-mcp for ephemeral use)",
+    "2. Copy the 'mcpServers' block below into your Claude Desktop config file.",
+    "3. Restart Claude Desktop. You will see 'sage' listed in available tools.",
+    "",
+    "Claude Desktop config file locations:",
+    "  macOS:   ~/Library/Application Support/Claude/claude_desktop_config.json",
+    "  Windows: %APPDATA%/Claude/claude_desktop_config.json"
+  ],
+  "mcpServers": {
+    "sage": {
+      "command": "python",
+      "args": ["-m", "sage_mcp"],
+      "env": {}
+    }
+  },
+  "_alternative_uvx": {
+    "mcpServers": {
+      "sage": {
+        "command": "uvx",
+        "args": ["sage-mcp"],
+        "env": {}
+      }
+    }
+  }
+}
