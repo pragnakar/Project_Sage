@@ -601,13 +601,19 @@ async def _handle_generate_template(args: dict[str, Any]) -> list[types.TextCont
     problem_type = args["problem_type"]
     output_directory = args.get("output_directory")
 
-    if output_directory:
-        out_dir = resolve_path(output_directory) if output_directory else default_output_dir()
-    else:
-        out_dir = default_output_dir()
+    try:
+        if output_directory:
+            out_dir = resolve_path(output_directory) if output_directory else default_output_dir()
+        else:
+            out_dir = default_output_dir()
 
-    out_path = out_dir / f"{problem_type}_template.xlsx"
-    generate_template(problem_type, str(out_path))
+        out_path = out_dir / f"{problem_type}_template.xlsx"
+        generate_template(problem_type, str(out_path))
+    except SAGEError as exc:
+        return _error_text(
+            f"Could not generate template: {exc}\n\n"
+            "Supported problem types: generic_lp, portfolio, scheduling, transport"
+        )
 
     return _text(
         f"Template generated: {out_path}\n\n"

@@ -64,3 +64,16 @@ logs/
 
 # Local dev
 *.local
+
+# Generated output files (solver results — not examples)
+*_optimized.xlsx
+*_result.xlsx
+*_output.xlsx
+
+# Solver / HiGHS artifacts
+*.lp
+*.mps
+*.sol
+
+# Claude Code
+.claude/

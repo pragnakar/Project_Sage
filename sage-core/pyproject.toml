@@ -18,8 +18,16 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Office/Business :: Financial",
+    "Typing :: Typed",
 ]
+
+[project.urls]
+Homepage = "https://github.com/pragnakar/sage"
+Repository = "https://github.com/pragnakar/sage"
+"Bug Tracker" = "https://github.com/pragnakar/sage/issues"
 dependencies = [
     "highspy>=1.7.0",
     "ortools>=9.9",
