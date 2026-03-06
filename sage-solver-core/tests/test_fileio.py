@@ -20,7 +20,7 @@ import pandas as pd
 import pytest
 import openpyxl
 
-from sage_core.fileio import (
+from sage_solver_core.fileio import (
     dataframe_to_model,
     generate_template,
     read_data,
@@ -28,7 +28,7 @@ from sage_core.fileio import (
     write_results_csv,
     write_results_excel,
 )
-from sage_core.models import (
+from sage_solver_core.models import (
     Asset,
     DataValidationError,
     FileIOError,
@@ -680,8 +680,8 @@ class TestMessyData:
 class TestRoundTrip:
     def test_portfolio_round_trip(self, tmp_path):
         """Generate portfolio template, fill data, read back, parse, solve."""
-        from sage_core.builder import build_from_portfolio
-        from sage_core.solver import solve
+        from sage_solver_core.builder import build_from_portfolio
+        from sage_solver_core.solver import solve
 
         # Step 1: generate template
         template_path = str(tmp_path / "portfolio_template.xlsx")
@@ -708,8 +708,8 @@ class TestRoundTrip:
 
     def test_scheduling_round_trip(self, tmp_path):
         """Generate scheduling template, fill data, read back, parse, solve."""
-        from sage_core.builder import build_from_scheduling
-        from sage_core.solver import solve
+        from sage_solver_core.builder import build_from_scheduling
+        from sage_solver_core.solver import solve
 
         filled_path = str(tmp_path / "scheduling_filled.xlsx")
         _make_scheduling_excel(filled_path)
@@ -739,8 +739,8 @@ class TestRoundTrip:
 
     def test_generic_lp_round_trip(self, tmp_path):
         """Parse generic_lp DataFrames, solve, write results."""
-        from sage_core.builder import build_from_mip
-        from sage_core.solver import solve
+        from sage_solver_core.builder import build_from_mip
+        from sage_solver_core.solver import solve
 
         vars_df = pd.DataFrame({
             "Name": ["x1", "x2"],
@@ -773,8 +773,8 @@ class TestRoundTrip:
 
     def test_transport_round_trip(self, tmp_path):
         """Parse transport DataFrames, solve."""
-        from sage_core.builder import build_from_lp
-        from sage_core.solver import solve
+        from sage_solver_core.builder import build_from_lp
+        from sage_solver_core.solver import solve
 
         origins_df = pd.DataFrame({"Name": ["W1", "W2"], "Supply": [300, 400]})
         dests_df = pd.DataFrame({"Name": ["C1", "C2"], "Demand": [250, 350]})

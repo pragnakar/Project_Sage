@@ -12,8 +12,8 @@ Before writing any code, read `SAGE_SPEC.md` in this repo. It contains the compl
 
 Three packages in a monorepo:
 
-- **sage-core/** — Pure logic. Solver wrappers, model building, file I/O, result explanation. NO deployment opinions. NO file system calls. NO print statements. Takes Python objects in, returns Python objects out.
-- **sage-mcp/** — Local MCP server. Thin wrapper. Imports sage-core, exposes MCP tools, bridges local filesystem. This is V1.
+- **sage-solver-core/** — Pure logic. Solver wrappers, model building, file I/O, result explanation. NO deployment opinions. NO file system calls. NO print statements. Takes Python objects in, returns Python objects out.
+- **sage-solver-mcp/** — Local MCP server. Thin wrapper. Imports sage-solver-core, exposes MCP tools, bridges local filesystem. This is V1.
 - **sage-cloud/** — DO NOT BUILD YET. Placeholder structure only.
 
 ## Tech Stack
@@ -31,22 +31,22 @@ Three packages in a monorepo:
 Follow this sequence. Do not skip ahead.
 
 1. Set up monorepo structure with all three package directories and pyproject.toml files
-2. Implement `sage-core/sage_core/models.py` — all Pydantic schemas
-3. Implement `sage-core/sage_core/solver.py` — HiGHS wrapper, SolverResult extraction
+2. Implement `sage-solver-core/sage_solver_core/models.py` — all Pydantic schemas
+3. Implement `sage-solver-core/sage_solver_core/solver.py` — HiGHS wrapper, SolverResult extraction
 4. Write tests for solver against known LP/MIP solutions
-5. Implement `sage-core/sage_core/builder.py` — portfolio→QP, scheduling→MIP, validation
-6. Implement `sage-core/sage_core/fileio.py` — Excel/CSV read/write, templates, messy data handling
+5. Implement `sage-solver-core/sage_solver_core/builder.py` — portfolio→QP, scheduling→MIP, validation
+6. Implement `sage-solver-core/sage_solver_core/fileio.py` — Excel/CSV read/write, templates, messy data handling
 7. Write tests for file I/O round-trips
-8. Implement `sage-core/sage_core/explainer.py` — result narration, sensitivity narrative
-9. Implement `sage-core/sage_core/relaxation.py` — IIS extraction, relaxation suggestions
-10. Implement `sage-mcp/sage_mcp/server.py` — all 7 MCP tools
+8. Implement `sage-solver-core/sage_solver_core/explainer.py` — result narration, sensitivity narrative
+9. Implement `sage-solver-core/sage_solver_core/relaxation.py` — IIS extraction, relaxation suggestions
+10. Implement `sage-solver-mcp/sage_solver_mcp/server.py` — all 7 MCP tools
 11. Create example Excel/CSV files in `examples/`
 12. End-to-end integration tests
 13. README.md, packaging, entry points
 
 ## Critical Design Rules
 
-- **sage-core functions NEVER access the filesystem directly.** They receive DataFrames, bytes, or model objects as arguments. The MCP layer or cloud layer handles file access.
+- **sage-solver-core functions NEVER access the filesystem directly.** They receive DataFrames, bytes, or model objects as arguments. The MCP layer or cloud layer handles file access.
 - **Every solver call returns a SolverResult** — never raw HiGHS output. The SolverResult includes status, variable values, sensitivity data, and IIS if infeasible.
 - **All errors are structured** — SAGEError subclasses with details dict and suggestions list. Never bare exceptions.
 - **Infeasibility is a first-class result, not an error.** When a model is infeasible, compute IIS, explain why, suggest relaxations.
@@ -63,7 +63,7 @@ Follow this sequence. Do not skip ahead.
 
 ## Testing
 
-Run tests: `cd sage-core && pytest tests/ -v`
+Run tests: `cd sage-solver-core && pytest tests/ -v`
 
 Known test values to verify solver correctness:
 
@@ -93,7 +93,7 @@ These exact tool names must be used in the MCP server:
 ## Dependencies
 
 ```
-# sage-core
+# sage-solver-core
 highspy>=1.7.0
 ortools>=9.9
 pandas>=2.1
@@ -101,7 +101,7 @@ openpyxl>=3.1
 pydantic>=2.5
 numpy>=1.24
 
-# sage-mcp (additional)
+# sage-solver-mcp (additional)
 mcp>=1.0
 ```
 

@@ -46,13 +46,13 @@ The result: AI shifts from *immediate but approximate* to *sustained and mathema
 
 ```bash
 # From PyPI (once published)
-pip install sage-mcp
+pip install sage-solver-mcp
 
 # From source (development)
 git clone https://github.com/pragnakar/Project_Sage
 cd sage
-pip install -e sage-core/
-pip install -e sage-mcp/
+pip install -e sage-solver-core/
+pip install -e sage-solver-mcp/
 ```
 
 ### 2. Configure Claude Desktop
@@ -67,7 +67,7 @@ Add the SAGE server:
   "mcpServers": {
     "sage": {
       "command": "python",
-      "args": ["-m", "sage_mcp"]
+      "args": ["-m", "sage_solver_mcp"]
     }
   }
 }
@@ -142,21 +142,21 @@ then solve it with risk aversion 2.5 and explain the sensitivity.
 
 ```
 Project_Sage/
-├── sage-core/          # Pure optimization engine — solver, models, fileio, explainer
-│   └── sage_core/
+├── sage-solver-core/          # Pure optimization engine — solver, models, fileio, explainer
+│   └── sage_solver_core/
 │       ├── models.py   # Pydantic models (LPModel, MIPModel, PortfolioModel, SchedulingModel)
 │       ├── solver.py   # HiGHS + OSQP solver adapters
 │       ├── builder.py  # JSON → SolverInput builders
 │       ├── fileio.py   # Excel/CSV read/write, template generation
 │       └── explainer.py# Natural language solution narration + IIS explanation
-├── sage-mcp/           # Local MCP server (this package — v0.1)
+├── sage-solver-mcp/           # Local MCP server (this package — v0.1)
 ├── sage-cloud/         # Cloud API (future — v0.2)
 └── examples/           # Ready-to-use example files
 ```
 
 **Data flow:**
 ```
-Claude Desktop → stdio JSON-RPC → sage-mcp → sage-core → HiGHS/OSQP
+Claude Desktop → stdio JSON-RPC → sage-solver-mcp → sage-solver-core → HiGHS/OSQP
                                                                ↓
                                                     SolverResult + IIS + Sensitivity
 ```
@@ -196,7 +196,7 @@ The long-term ambition is a planetary-scale optimization fabric: interconnected,
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup, test instructions, and branch conventions.
 
-459 tests · 0 failures · sage-core 0.1.0 · sage-mcp 0.1.0
+459 tests · 0 failures · sage-solver-core 0.1.0 · sage-solver-mcp 0.1.0
 
 ---
 

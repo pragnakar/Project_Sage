@@ -41,7 +41,7 @@ from openpyxl.styles import (
 )
 from openpyxl.utils import get_column_letter
 
-from sage_core.models import (
+from sage_solver_core.models import (
     Asset,
     DataValidationError,
     FileIOError,

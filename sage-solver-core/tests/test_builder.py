@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 
-from sage_core.builder import (
+from sage_solver_core.builder import (
     ValidationIssue,
     build_from_lp,
     build_from_mip,
@@ -25,7 +25,7 @@ from sage_core.builder import (
     build_from_scheduling,
     validate_model,
 )
-from sage_core.models import (
+from sage_solver_core.models import (
     Asset,
     LPModel,
     LPVariable,
@@ -41,7 +41,7 @@ from sage_core.models import (
     SolverInput,
     Worker,
 )
-from sage_core.solver import solve
+from sage_solver_core.solver import solve
 
 # ---------------------------------------------------------------------------
 # Shared fixtures

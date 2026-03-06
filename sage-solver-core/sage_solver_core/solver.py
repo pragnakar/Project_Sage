@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from sage_core.models import IISResult, SolverError, SolverInput, SolverResult
+from sage_solver_core.models import IISResult, SolverError, SolverInput, SolverResult
 
 if TYPE_CHECKING:  # pragma: no cover
     pass

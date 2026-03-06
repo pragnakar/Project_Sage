@@ -16,8 +16,8 @@ repos:
           - pydantic>=2.5
           - pandas-stubs>=2.1
           - types-openpyxl
-        args: [--config-file=sage-core/pyproject.toml]
-        files: ^sage-core/
+        args: [--config-file=sage-solver-core/pyproject.toml]
+        files: ^sage-solver-core/
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0

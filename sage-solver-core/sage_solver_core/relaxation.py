@@ -22,7 +22,7 @@ import copy
 import logging
 from typing import Union
 
-from sage_core.models import (
+from sage_solver_core.models import (
     IISResult,
     LPModel,
     MIPModel,
@@ -32,7 +32,7 @@ from sage_core.models import (
     SolverInput,
     SolverResult,
 )
-from sage_core.solver import solve
+from sage_solver_core.solver import solve
 
 logger = logging.getLogger("sage.relaxation")
 

@@ -11,7 +11,7 @@ import json
 
 import pytest
 
-from sage_core.models import (
+from sage_solver_core.models import (
     IISResult,
     LPModel,
     LPVariable,
@@ -20,7 +20,7 @@ from sage_core.models import (
     SolverInput,
     SolverResult,
 )
-from sage_core.solver import solve
+from sage_solver_core.solver import solve
 
 
 # ---------------------------------------------------------------------------

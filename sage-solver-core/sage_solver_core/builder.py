@@ -21,7 +21,7 @@ import logging
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 
-from sage_core.models import (
+from sage_solver_core.models import (
     LPModel,
     MIPModel,
     ModelBuildError,

@@ -22,16 +22,16 @@ python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
 # Install both packages in editable mode
-pip install -e sage-core/[dev]
-pip install -e sage-mcp/[dev]
+pip install -e sage-solver-core/[dev]
+pip install -e sage-solver-mcp/[dev]
 ```
 
 ### Verify the install
 
 ```bash
-python -m pytest sage-core/tests/ -q   # should show ~382 passing
-python -m pytest sage-mcp/tests/ -q    # should show ~72 passing
-python -m sage_mcp --help 2>&1 | head  # prints nothing (stdio mode — that is correct)
+python -m pytest sage-solver-core/tests/ -q   # should show ~382 passing
+python -m pytest sage-solver-mcp/tests/ -q    # should show ~72 passing
+python -m sage_solver_mcp --help 2>&1 | head  # prints nothing (stdio mode — that is correct)
 ```
 
 ---
@@ -43,11 +43,11 @@ python -m sage_mcp --help 2>&1 | head  # prints nothing (stdio mode — that is 
 python -m pytest
 
 # One package
-python -m pytest sage-core/tests/
-python -m pytest sage-mcp/tests/
+python -m pytest sage-solver-core/tests/
+python -m pytest sage-solver-mcp/tests/
 
 # One module
-python -m pytest sage-mcp/tests/test_examples.py -v
+python -m pytest sage-solver-mcp/tests/test_examples.py -v
 
 # Stop on first failure
 python -m pytest -x
@@ -55,8 +55,8 @@ python -m pytest -x
 
 Tests are co-located with their packages:
 ```
-sage-core/tests/    # 382 tests — solver, builder, fileio, explainer, models
-sage-mcp/tests/     # 72 tests — 7 MCP tools, state sequences, error handling, examples
+sage-solver-core/tests/    # 382 tests — solver, builder, fileio, explainer, models
+sage-solver-mcp/tests/     # 72 tests — 7 MCP tools, state sequences, error handling, examples
 ```
 
 ---
@@ -93,21 +93,21 @@ git push origin feature/my-feature
 
 Run linting:
 ```bash
-ruff check sage-core/ sage-mcp/
-ruff format --check sage-core/ sage-mcp/
+ruff check sage-solver-core/ sage-solver-mcp/
+ruff format --check sage-solver-core/ sage-solver-mcp/
 ```
 
 ---
 
 ## Adding a New Problem Type
 
-1. **Model** — Add a new Pydantic model in `sage-core/sage_core/models.py`
-2. **Builder** — Add `build_from_<type>` in `sage-core/sage_core/builder.py`
-3. **Solver** — Add a solver path in `sage-core/sage_core/solver.py`
-4. **File I/O** — Add `_parse_<type>` and `_gen_<type>_template` in `sage-core/sage_core/fileio.py`
-5. **Explainer** — Update `explain_result` in `sage-core/sage_core/explainer.py`
-6. **MCP server** — Update `_detect_model_type` and `_parse_model` in `sage-mcp/sage_mcp/server.py`
-7. **Tests** — Add tests to both `sage-core/tests/` and `sage-mcp/tests/`
+1. **Model** — Add a new Pydantic model in `sage-solver-core/sage_solver_core/models.py`
+2. **Builder** — Add `build_from_<type>` in `sage-solver-core/sage_solver_core/builder.py`
+3. **Solver** — Add a solver path in `sage-solver-core/sage_solver_core/solver.py`
+4. **File I/O** — Add `_parse_<type>` and `_gen_<type>_template` in `sage-solver-core/sage_solver_core/fileio.py`
+5. **Explainer** — Update `explain_result` in `sage-solver-core/sage_solver_core/explainer.py`
+6. **MCP server** — Update `_detect_model_type` and `_parse_model` in `sage-solver-mcp/sage_solver_mcp/server.py`
+7. **Tests** — Add tests to both `sage-solver-core/tests/` and `sage-solver-mcp/tests/`
 
 ---
 
@@ -125,6 +125,6 @@ ruff format --check sage-core/ sage-mcp/
 
 Open an issue on GitHub with:
 - Python version
-- Package version (`pip show sage-mcp`)
+- Package version (`pip show sage-solver-mcp`)
 - The model JSON or file that caused the problem
 - The full error message (including any MCP response text)

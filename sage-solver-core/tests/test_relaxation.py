@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import pytest
 
-from sage_core.builder import build_from_lp, build_from_mip, build_from_scheduling
-from sage_core.explainer import explain_infeasibility
-from sage_core.models import (
+from sage_solver_core.builder import build_from_lp, build_from_mip, build_from_scheduling
+from sage_solver_core.explainer import explain_infeasibility
+from sage_solver_core.models import (
     IISResult,
     LPModel,
     LPVariable,
@@ -29,8 +29,8 @@ from sage_core.models import (
     SolverResult,
     Worker,
 )
-from sage_core.relaxation import suggest_relaxations
-from sage_core.solver import solve
+from sage_solver_core.relaxation import suggest_relaxations
+from sage_solver_core.solver import solve
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +226,7 @@ class TestFeasibilityVerification:
             c_idx = cname_to_idx[top.constraint_name]
             data = si.model_dump()
             data["constraint_rhs"][c_idx] = top.suggested_value
-            from sage_core.models import SolverInput
+            from sage_solver_core.models import SolverInput
             relaxed_si = SolverInput(**data)
             relaxed_result = solve(relaxed_si)
             assert relaxed_result.status == "optimal", (
@@ -248,7 +248,7 @@ class TestFeasibilityVerification:
             c_idx = cname_to_idx[top.constraint_name]
             data = si.model_dump()
             data["constraint_rhs"][c_idx] = top.suggested_value
-            from sage_core.models import SolverInput
+            from sage_solver_core.models import SolverInput
             relaxed_si = SolverInput(**data)
             actual_result = solve(relaxed_si)
             if actual_result.status == "optimal" and actual_result.objective_value is not None:
@@ -261,7 +261,7 @@ class TestFeasibilityVerification:
         model, si, result = three_constraint_infeasible
         suggestions = suggest_relaxations(result.iis, model, si)
 
-        from sage_core.models import SolverInput
+        from sage_solver_core.models import SolverInput
         cname_to_idx = {n: i for i, n in enumerate(si.constraint_names)}
         vname_to_idx = {n: i for i, n in enumerate(si.variable_names)}
 
@@ -307,7 +307,7 @@ class TestIntegrationInfeasibleToFeasible:
 
         # Step 3: apply best relaxation and re-solve
         top = suggestions[0]
-        from sage_core.models import SolverInput
+        from sage_solver_core.models import SolverInput
         cname_to_idx = {n: i for i, n in enumerate(si.constraint_names)}
 
         assert top.constraint_name in cname_to_idx
@@ -347,7 +347,7 @@ class TestIntegrationInfeasibleToFeasible:
         assert len(suggestions) > 0, "Expected at least one relaxation suggestion"
 
         # Apply best relaxation and verify feasibility
-        from sage_core.models import SolverInput
+        from sage_solver_core.models import SolverInput
         top = suggestions[0]
         cname_to_idx = {n: i for i, n in enumerate(si.constraint_names)}
         vname_to_idx = {n: i for i, n in enumerate(si.variable_names)}
@@ -373,8 +373,8 @@ class TestIntegrationInfeasibleToFeasible:
 
         5 assets, each requiring min 25% allocation → min total = 125% > 100%.
         """
-        from sage_core.builder import build_from_portfolio
-        from sage_core.models import Asset, PortfolioConstraints, PortfolioModel
+        from sage_solver_core.builder import build_from_portfolio
+        from sage_solver_core.models import Asset, PortfolioConstraints, PortfolioModel
 
         model = PortfolioModel(
             assets=[Asset(name=f"A{i}", expected_return=0.1) for i in range(5)],
@@ -398,7 +398,7 @@ class TestIntegrationInfeasibleToFeasible:
         assert len(suggestions) > 0
 
         # Apply best relaxation
-        from sage_core.models import SolverInput
+        from sage_solver_core.models import SolverInput
         top = suggestions[0]
         cname_to_idx = {n: i for i, n in enumerate(si.constraint_names)}
         if top.constraint_name in cname_to_idx:

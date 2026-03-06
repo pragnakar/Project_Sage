@@ -31,7 +31,7 @@ def run(coro):
 
 
 # ── import handlers ──────────────────────────────────────────────────────────
-from sage_mcp.server import (  # noqa: E402
+from sage_solver_mcp.server import (  # noqa: E402
     _handle_read_data_file,
     _handle_solve_from_file,
     _handle_generate_template,
@@ -236,7 +236,7 @@ class TestSolveFromFile:
         )
         # If state is populated, last_result should be a SolverResult
         if _state.last_result is not None:
-            from sage_core.models import SolverResult
+            from sage_solver_core.models import SolverResult
             assert isinstance(_state.last_result, SolverResult)
 
 
@@ -251,7 +251,7 @@ class TestConversationSimulation:
         assert "Traceback" not in text(read_resp)
 
         # Step 2: Solve an LP directly (not from file)
-        from sage_mcp.server import _handle_solve_optimization, _handle_explain_solution
+        from sage_solver_mcp.server import _handle_solve_optimization, _handle_explain_solution
 
         lp_data = {
             "problem_type": "lp",

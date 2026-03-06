@@ -5,7 +5,7 @@
 **Date:** 2026-03-05
 **Total tests:** 459 passing, 0 failing
 **Total commits:** 32
-**Packages:** sage-core 0.1.0, sage-mcp 0.1.0
+**Packages:** sage-solver-core 0.1.0, sage-solver-mcp 0.1.0
 **Bugs caught by verification (all phases):**
 1. HiGHS float `inf` → `None` conversion (Phase 2)
 2. Binary variable upper_bound set to 0 by mistake (Phase 2)
@@ -17,7 +17,7 @@
 8. `[project.urls]` in pyproject.toml captured `dependencies` as a URL key — broke `pip install -e` (Phase 7 verification)
 9. `==` Excel formula issue — equality constraints in generic_lp must be split into `>=`/`<=` pair (Phase 7 verification)
 
-**Lines of code (production):** 5,861 (11 files across sage-core + sage-mcp)
+**Lines of code (production):** 5,861 (11 files across sage-solver-core + sage-solver-mcp)
 **Example problems:** portfolio (5 assets, optimal), nurse scheduling (8 nurses, intentionally infeasible), transport routing (3 warehouses → 5 stores, optimal $2,472), blending (6 ingredients, optimal $23.47/100kg)
 
 ---
@@ -34,7 +34,7 @@
 | 6       | 2026-03-05 | Phase 3 verification | Session 6 | — | solver binary-var ub=0 fix, test_full_pipeline.py (4 tests), 252 total, merged to develop |
 | 7       | 2026-03-05 | Phase 4 | Session 7 | — | fileio.py complete — read/write/template/bridge, 68 tests, 320 total, merged to develop |
 | 8       | 2026-03-05 | Phase 5 | Session 8 | — | explainer.py + relaxation.py complete — 62 new tests, 382 total; builder consecutive_days bug fix |
-| 9       | 2026-03-05 | Phase 6 | Session 9 | — | sage-mcp complete — server.py (7 tools), local_io.py, __main__.py, 53 tests, 435 total; entry point fix |
+| 9       | 2026-03-05 | Phase 6 | Session 9 | — | sage-solver-mcp complete — server.py (7 tools), local_io.py, __main__.py, 53 tests, 435 total; entry point fix |
 | 10      | 2026-03-05 | Phase 7 | Session 10 | — | Polish + v0.1.0 — 4 example files, 19 smoke tests, README (174 lines), CONTRIBUTING.md, .gitignore, metadata; 454/454 tests; tagged v0.1.0 |
 | 11      | 2026-03-05 | Phase 7 verification | Session 11 | — | Ship-readiness check: found and fixed 4 blockers (example column/sheet names, pyproject.toml [project.urls] TOML bug); 459/459 tests; pip install works; re-tagged v0.1.0 |
 
@@ -56,9 +56,9 @@ Update this table at the start and end of each session.
 
 ### Phase 1 — Project Structure & Schemas
 - [x] Monorepo structure created
-- [x] pyproject.toml files (sage-core, sage-mcp, sage-cloud placeholder)
+- [x] pyproject.toml files (sage-solver-core, sage-solver-mcp, sage-cloud placeholder)
 - [x] ruff.toml and .pre-commit-config.yaml
-- [x] sage_core/__init__.py with version
+- [x] sage_solver_core/__init__.py with version
 - [x] models.py — LP schemas (LPVariable, LinearConstraint, LinearObjective, LPModel)
 - [x] models.py — MIP schemas (MIPVariable, MIPModel)
 - [x] models.py — Portfolio schemas (Asset, PortfolioConstraints, PortfolioModel)
@@ -144,10 +144,10 @@ Update this table at the start and end of each session.
 - [x] server.py — ServerState stores last result/model/solver_input/iis for follow-up tools
 - [x] server.py — Error handling: SAGEError, ValidationError, FileNotFoundError, unexpected all caught
 - [x] local_io.py — resolve_path (~, relative→absolute, existence check), ensure_output_dir, output_path_for
-- [x] __main__.py — entry point for python -m sage_mcp
+- [x] __main__.py — entry point for python -m sage_solver_mcp
 - [x] claude_desktop_config.json — example Claude Desktop configuration (python + uvx variants)
 - [x] test_server.py — 53 tests: tool registration, all 7 tools, state sequences, 8 error cases
-- [x] fix: console_scripts entry point corrected to sage_mcp.server:main
+- [x] fix: console_scripts entry point corrected to sage_solver_mcp.server:main
 - [x] Committed to feature/phase-6-mcp-server
 - [x] Merged to develop
 - [x] **PHASE 6 COMPLETE & VERIFIED** — 435/435 tests, on develop
@@ -191,9 +191,9 @@ Record any decision made during implementation that deviates from or clarifies t
 | 14 | 2026-03-05 | Binary search: exponential probe then 25-iteration bisection | Probe multiplies max(|rhs|, 1.0) by factors [0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 50.0, 100.0, 1000.0] to bound the feasible region, then bisection finds minimum relaxation. Returns None if probe fails (model too infeasible for single-constraint fix — this is a known limitation, not a bug). |
 | 15 | 2026-03-05 | consecutive_days RHS corrected to mc × S for multi-shift models | Original builder used float(mc); the constraint sums assignments across all shifts in the window, so limit must be max_consecutive_days × num_shifts. For S=3 and mc=5, RHS was 5 (1.67 days) instead of 15 (5 days). Fix makes relaxation tractable for multi-shift infeasible models. |
 | 16 | 2026-03-05 | MCP server stores last result in ServerState dataclass (module-level singleton) | ServerState holds last_result, last_model, last_solver_input, last_iis. Module-level (not per-request) because MCP stdio server has one process/one user — no concurrency. All follow-up tools (explain_solution, suggest_relaxations) read from this state. |
-| 17 | 2026-03-05 | Tool responses formatted as plain text, not JSON or structured objects | MCP text content is what the LLM sees and relays to the user. Plain text explanations (same format as sage-core's explain_result) are more LLM-friendly than JSON. File paths included verbatim so the LLM can tell the user where output was saved. |
+| 17 | 2026-03-05 | Tool responses formatted as plain text, not JSON or structured objects | MCP text content is what the LLM sees and relays to the user. Plain text explanations (same format as sage-solver-core's explain_result) are more LLM-friendly than JSON. File paths included verbatim so the LLM can tell the user where output was saved. |
 | 18 | 2026-03-05 | Model type auto-detected from JSON structure if problem_type not provided | Detection priority: explicit problem_type field → portfolio (has assets+covariance_matrix) → scheduling (has workers+shifts) → MIP (has non-continuous var_type) → LP. This lets the LLM omit problem_type for obvious cases. |
-| 19 | 2026-03-05 | pyproject.toml console_scripts pointed to __main__:main instead of server:main | __main__.py imports main from server.py and re-executes it under __name__=="__main__", but the module-level name 'main' doesn't exist in __main__.py's namespace for pip script wrappers. Fixed to point directly to sage_mcp.server:main. |
+| 19 | 2026-03-05 | pyproject.toml console_scripts pointed to __main__:main instead of server:main | __main__.py imports main from server.py and re-executes it under __name__=="__main__", but the module-level name 'main' doesn't exist in __main__.py's namespace for pip script wrappers. Fixed to point directly to sage_solver_mcp.server:main. |
 
 ---
 
@@ -210,7 +210,7 @@ Record any decision made during implementation that deviates from or clarifies t
 | 7 | 2026-03-05 | `_strip_blank` drops all columns from header-only (empty data) DataFrame | RESOLVED | `dropna(axis=1, how="all")` on a DataFrame with zero rows drops all columns since every column is trivially all-null. Added explicit `if len(df) == 0` early-exit in `_parse_portfolio` before calling `_normalise_cols`. |
 | 8 | 2026-03-05 | consecutive_days RHS wrong for multi-shift models — relaxation probe fails | RESOLVED | builder.py line 566: `float(mc)` → `float(mc * S)`. The rolling window constraint sums assignments across all S shifts, so RHS must be mc×S. Buggy RHS=mc made models far more infeasible than intended and blocked probe from ever finding feasibility for single-constraint relaxation. |
 | 9 | 2026-03-05 | Deeply infeasible scheduling model (demand >> capacity) returns 0 relaxation suggestions | KNOWN LIMITATION | When demand exceeds total system capacity (e.g., 28 required assignments vs 18 max capacity), no single constraint relaxation can restore feasibility. suggest_relaxations returns [] correctly; this is documented behavior, not a bug. |
-| 10 | 2026-03-05 | console_scripts entry point sage_mcp.__main__:main fails for pip-installed script | RESOLVED | __main__.py imports main but doesn't define it as a module-level name; pip's script wrapper calls `__main__.main()` which fails with AttributeError. Fixed pyproject.toml to point to `sage_mcp.server:main` directly. |
+| 10 | 2026-03-05 | console_scripts entry point sage_solver_mcp.__main__:main fails for pip-installed script | RESOLVED | __main__.py imports main but doesn't define it as a module-level name; pip's script wrapper calls `__main__.main()` which fails with AttributeError. Fixed pyproject.toml to point to `sage_solver_mcp.server:main` directly. |
 
 ---
 
@@ -245,7 +245,7 @@ Update after each phase.
 | 4     | 68            | 68            | 0             | Excel/CSV read, write results, templates, DataFrame→model, messy data, round-trip, errors |
 | 5     | 62            | 62            | 0             | explainer: 38 tests (detail levels, domain language, infeasibility, integration); relaxation: 24 tests (suggestions, ranking, re-solve, pipeline, edge cases) |
 | 6     | 53            | 53            | 0             | MCP server: 7 tool registration, all tool handlers, state sequences, 8 error cases, conversation simulations |
-| Total | 435           | 435           | 0             | All phases combined (382 sage-core + 53 sage-mcp) |
+| Total | 435           | 435           | 0             | All phases combined (382 sage-solver-core + 53 sage-solver-mcp) |
 | 7     |               |               |               |       |
 | 6     |               |               |               |       |
 | 7     |               |               |               |       |
