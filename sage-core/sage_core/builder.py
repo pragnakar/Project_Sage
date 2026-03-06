@@ -563,7 +563,7 @@ def build_from_scheduling(model: SchedulingModel) -> SolverInput:
                 for s in range(S):
                     for d in range(d_start, d_end + 1):
                         row[_vidx(w, s, d)] = 1.0
-                _add(f"consec_{worker.name}_from_d{d_start}", row, "<=", float(mc))
+                _add(f"consec_{worker.name}_from_d{d_start}", row, "<=", float(mc * S))
 
     # --- Objective: minimize total assignments --------------------------------
     obj_coeffs = [1.0] * n
