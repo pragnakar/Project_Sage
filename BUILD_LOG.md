@@ -11,6 +11,7 @@
 | 5       | 2026-03-05 | Phase 3 | Session 5 | — | builder.py complete — LP/MIP/Portfolio/Scheduling/validate_model, 94 tests, 248 total |
 | 6       | 2026-03-05 | Phase 3 verification | Session 6 | — | solver binary-var ub=0 fix, test_full_pipeline.py (4 tests), 252 total, merged to develop |
 | 7       | 2026-03-05 | Phase 4 | Session 7 | — | fileio.py complete — read/write/template/bridge, 68 tests, 320 total, merged to develop |
+| 8       | 2026-03-05 | Phase 5 | Session 8 | — | explainer.py + relaxation.py complete — 62 new tests, 382 total; builder consecutive_days bug fix |
 
 Update this table at the start and end of each session.
 
@@ -18,10 +19,10 @@ Update this table at the start and end of each session.
 
 ## Current Status
 
-**Active Phase:** Phase 4 VERIFIED — merged to develop; ready for Phase 5
+**Active Phase:** Phase 5 VERIFIED — merged to develop; ready for Phase 6
 **Active Branch:** develop
-**Last Completed Task:** Phase 4 verification — ffill bug fixed, 6 public functions, 68 tests, 320/320 passing, merged
-**Next Task:** Phase 5 — Explainer & Relaxation (explainer.py, relaxation.py)
+**Last Completed Task:** Phase 5 verification — 62 new tests (38 explainer + 24 relaxation), 382/382 passing, builder bug fixed, merged
+**Next Task:** Phase 6 — MCP Server (sage-mcp/server.py)
 **Blockers:** None
 
 ---
@@ -89,19 +90,22 @@ Update this table at the start and end of each session.
 - [x] Merged to develop
 - [x] **PHASE 4 COMPLETE & VERIFIED** — 320/320 tests, on develop
 
-### Phase 5 — Explainer & Relaxation
-- [ ] explainer.py — explain_result (brief/standard/detailed)
-- [ ] explainer.py — explain_infeasibility
-- [ ] explainer.py — domain-specific language (portfolio vs scheduling)
-- [ ] relaxation.py — suggest_relaxations with re-solving
-- [ ] relaxation.py — ranking by minimal disruption
-- [ ] test_explainer.py — detail level tests
-- [ ] test_explainer.py — infeasibility explanation test
-- [ ] test_relaxation.py — suggestion correctness
-- [ ] test_relaxation.py — re-solve verification
-- [ ] Integration test — infeasible → explain → relax → re-solve → feasible
-- [ ] Committed to feature/phase-5-intelligence
-- [ ] **PHASE 5 COMPLETE** — awaiting review
+### Phase 5 — Explainer & Relaxation (COMPLETE)
+- [x] explainer.py — explain_result (brief/standard/detailed)
+- [x] explainer.py — explain_infeasibility with quantitative demand/capacity
+- [x] explainer.py — domain-specific language (portfolio/scheduling/LP/MIP)
+- [x] explainer.py — no Markdown output enforced throughout
+- [x] relaxation.py — suggest_relaxations with binary-search RHS bisection
+- [x] relaxation.py — ranking by minimal disruption (relaxation_percent)
+- [x] relaxation.py — variable bound relaxation support
+- [x] relaxation.py — domain constraint context in explanations
+- [x] test_explainer.py — 38 tests (detail levels, binding constraints, domain language, infeasibility, non-optimal statuses, integration)
+- [x] test_relaxation.py — 24 tests (suggestion correctness, ranking, re-solve verification, full pipeline, edge cases)
+- [x] Integration test — infeasible → explain → relax → re-solve → feasible (LP, scheduling, portfolio)
+- [x] fix(builder) — consecutive_days RHS corrected: mc × S (was just mc, wrong for multi-shift)
+- [x] Committed to feature/phase-5-intelligence
+- [x] Merged to develop
+- [x] **PHASE 5 COMPLETE & VERIFIED** — 382/382 tests, on develop
 
 ### Phase 6 — MCP Server
 - [ ] server.py — MCP server setup with official SDK
@@ -158,6 +162,9 @@ Record any decision made during implementation that deviates from or clarifies t
 | 10 | 2026-03-05 | Percentage strings parsed as fractions in `_parse_number` | `"8%"` → `0.08`, `"5.5 %"` → `0.055`. Consistent with financial domain expectations where returns and allocations are entered as percentages in Excel but stored as fractions in the model. |
 | 11 | 2026-03-05 | Column header normalisation deferred to parse time via `_normalise_cols()` | Column headers are preserved as-is at read time. `_normalise_cols()` maps `str(col).strip().lower().replace(" ","_") → actual_col` at parse time. This avoids mutating the DataFrames and allows callers to inspect original headers while still matching case/whitespace variants. |
 | 12 | 2026-03-05 | Empty sheet check before `_normalise_cols()` in `_parse_portfolio` | `_strip_blank()` on a header-only DataFrame drops all columns (trivially all-null), causing `_normalise_cols()` to return `{}` and producing a misleading "Required column not found" error. Added `if len(assets_df) == 0: raise DataValidationError(...)` before any column resolution. |
+| 13 | 2026-03-05 | explain_result domain dispatch uses isinstance priority order | PortfolioModel and SchedulingModel are checked before MIPModel/LPModel so domain-specific formatting (%, asset names, shift assignments) applies correctly. Falls through to LP/MIP generic formatting if neither matches. |
+| 14 | 2026-03-05 | Binary search: exponential probe then 25-iteration bisection | Probe multiplies max(|rhs|, 1.0) by factors [0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 50.0, 100.0, 1000.0] to bound the feasible region, then bisection finds minimum relaxation. Returns None if probe fails (model too infeasible for single-constraint fix — this is a known limitation, not a bug). |
+| 15 | 2026-03-05 | consecutive_days RHS corrected to mc × S for multi-shift models | Original builder used float(mc); the constraint sums assignments across all shifts in the window, so limit must be max_consecutive_days × num_shifts. For S=3 and mc=5, RHS was 5 (1.67 days) instead of 15 (5 days). Fix makes relaxation tractable for multi-shift infeasible models. |
 
 ---
 
@@ -172,6 +179,8 @@ Record any decision made during implementation that deviates from or clarifies t
 | 5 | 2026-03-05 | Scheduling binary vars with ub=0 (skill block) not respected by solver | RESOLVED | `_build_highs()` was hardcoding [0,1] for all binary vars. Fixed to use `min(1.0, ub)` so that ub=0 blocks are passed to HiGHS correctly. |
 | 6 | 2026-03-05 | Template `Workers` sheet — `Unavailable_Shifts` showed description text instead of empty string | RESOLVED | `_forward_fill_headers()` (df.ffill()) in `_read_excel_bytes` propagated the description row into blank cells. Removed ffill calls from both Excel and CSV reader paths. |
 | 7 | 2026-03-05 | `_strip_blank` drops all columns from header-only (empty data) DataFrame | RESOLVED | `dropna(axis=1, how="all")` on a DataFrame with zero rows drops all columns since every column is trivially all-null. Added explicit `if len(df) == 0` early-exit in `_parse_portfolio` before calling `_normalise_cols`. |
+| 8 | 2026-03-05 | consecutive_days RHS wrong for multi-shift models — relaxation probe fails | RESOLVED | builder.py line 566: `float(mc)` → `float(mc * S)`. The rolling window constraint sums assignments across all S shifts, so RHS must be mc×S. Buggy RHS=mc made models far more infeasible than intended and blocked probe from ever finding feasibility for single-constraint relaxation. |
+| 9 | 2026-03-05 | Deeply infeasible scheduling model (demand >> capacity) returns 0 relaxation suggestions | KNOWN LIMITATION | When demand exceeds total system capacity (e.g., 28 required assignments vs 18 max capacity), no single constraint relaxation can restore feasibility. suggest_relaxations returns [] correctly; this is documented behavior, not a bug. |
 
 ---
 
@@ -204,7 +213,8 @@ Update after each phase.
 | 3     | 94            | 94            | 0             | LP/MIP/Portfolio/Scheduling build + integration tests (weights sum, coverage, infeasible) |
 | 3 ver | 4             | 4             | 0             | Full pipeline: LP, MIP knapsack, Portfolio QP, Scheduling binary MIP (end-to-end) |
 | 4     | 68            | 68            | 0             | Excel/CSV read, write results, templates, DataFrame→model, messy data, round-trip, errors |
-| Total | 320           | 320           | 0             | All phases combined |
-| 5     |               |               |               |       |
+| 5     | 62            | 62            | 0             | explainer: 38 tests (detail levels, domain language, infeasibility, integration); relaxation: 24 tests (suggestions, ranking, re-solve, pipeline, edge cases) |
+| Total | 382           | 382           | 0             | All phases combined |
+| 6     |               |               |               |       |
 | 6     |               |               |               |       |
 | 7     |               |               |               |       |
