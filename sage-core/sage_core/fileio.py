@@ -326,7 +326,6 @@ def _read_excel_bytes(content: bytes, filename: str) -> dict[str, pd.DataFrame]:
         data_rows = rows[header_idx + 1 :]
 
         df = pd.DataFrame(data_rows, columns=header)
-        df = _forward_fill_headers(df)
         df = _strip_blank(df)
         result[sheet_name] = df
 
@@ -339,7 +338,6 @@ def _read_csv_bytes(content: bytes, filename: str, sep: str = ",") -> pd.DataFra
         try:
             text = content.decode(encoding)
             df = pd.read_csv(io.StringIO(text), sep=sep)
-            df = _forward_fill_headers(df)
             df = _strip_blank(df)
             logger.debug("CSV '%s' decoded with %s, %d rows", filename, encoding, len(df))
             return df
