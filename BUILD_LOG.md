@@ -10,6 +10,7 @@
 | 4       | 2026-03-05 | Phase 2 verification | Session 4 | — | 154/154 tests pass, float inf fix, integration tests, QP verified, ready for Phase 3 |
 | 5       | 2026-03-05 | Phase 3 | Session 5 | — | builder.py complete — LP/MIP/Portfolio/Scheduling/validate_model, 94 tests, 248 total |
 | 6       | 2026-03-05 | Phase 3 verification | Session 6 | — | solver binary-var ub=0 fix, test_full_pipeline.py (4 tests), 252 total, merged to develop |
+| 7       | 2026-03-05 | Phase 4 | Session 7 | — | fileio.py complete — read/write/template/bridge, 68 tests, 320 total, merged to develop |
 
 Update this table at the start and end of each session.
 
@@ -17,10 +18,10 @@ Update this table at the start and end of each session.
 
 ## Current Status
 
-**Active Phase:** Phase 3 VERIFIED — merged to develop; ready for Phase 4
+**Active Phase:** Phase 4 VERIFIED — merged to develop; ready for Phase 5
 **Active Branch:** develop
-**Last Completed Task:** Phase 3 verification — solver ub=0 bug fixed, full pipeline tests added, 252/252 passing, merged
-**Next Task:** Phase 4 — File I/O (fileio.py)
+**Last Completed Task:** Phase 4 verification — ffill bug fixed, 6 public functions, 68 tests, 320/320 passing, merged
+**Next Task:** Phase 5 — Explainer & Relaxation (explainer.py, relaxation.py)
 **Blockers:** None
 
 ---
@@ -76,20 +77,17 @@ Update this table at the start and end of each session.
 - [x] Merged to develop
 - [x] **PHASE 3 COMPLETE & VERIFIED** — 252/252 tests, on develop
 
-### Phase 4 — File I/O (Excel/CSV)
-- [ ] fileio.py — read_data (Excel + CSV)
-- [ ] fileio.py — read_data_from_bytes
-- [ ] fileio.py — write_results_excel (formatted multi-sheet)
-- [ ] fileio.py — write_results_csv
-- [ ] fileio.py — generate_template (portfolio, scheduling, transport, generic_lp)
-- [ ] fileio.py — dataframe_to_model (messy data handling)
-- [ ] test fixtures — test Excel files in tests/fixtures/
-- [ ] test_fileio.py — round-trip test
-- [ ] test_fileio.py — messy data test
-- [ ] test_fileio.py — error handling test
-- [ ] test_fileio.py — write results test
-- [ ] Committed to feature/phase-4-fileio
-- [ ] **PHASE 4 COMPLETE** — awaiting review
+### Phase 4 — File I/O (Excel/CSV) (COMPLETE)
+- [x] fileio.py — read_data (Excel + CSV, auto-detect, encoding fallback)
+- [x] fileio.py — read_data_from_bytes (same from bytes buffer)
+- [x] fileio.py — write_results_excel (5-sheet formatted workbook)
+- [x] fileio.py — write_results_csv (flat CSV output)
+- [x] fileio.py — generate_template (portfolio, scheduling, transport, generic_lp)
+- [x] fileio.py — dataframe_to_model (LP/MIP/Portfolio/Scheduling bridge)
+- [x] test_fileio.py — 68 tests: read, write, template, bridge, messy data, round-trip, error handling
+- [x] Committed to feature/phase-4-fileio
+- [x] Merged to develop
+- [x] **PHASE 4 COMPLETE & VERIFIED** — 320/320 tests, on develop
 
 ### Phase 5 — Explainer & Relaxation
 - [ ] explainer.py — explain_result (brief/standard/detailed)
@@ -156,6 +154,10 @@ Record any decision made during implementation that deviates from or clarifies t
 | 6 | 2026-03-05 | Unavailability and skill restrictions encoded as variable upper bounds (ub=0) | Cleaner than adding equality constraints; reduces model size; HiGHS handles bound reductions efficiently. |
 | 7 | 2026-03-05 | validate_model accepts LPModel \| MIPModel (not Portfolio/Scheduling) | Portfolio and Scheduling have their own domain-specific validation in their builders. validate_model targets generic LP/MIP models. |
 | 8 | 2026-03-05 | Binary variable ub=0 must be passed to HiGHS via addVar, not just SolverInput | _build_highs() was hardcoding addVar(0.0, 1.0) for all binary vars. Skill/unavailability blocks (ub=0 in SolverInput) were silently ignored. Fix: use min(1.0, ub) in addVar. |
+| 9 | 2026-03-05 | `ffill()` removed from Excel/CSV reader path | `df.ffill()` propagated description-row strings into blank data cells. openpyxl returns `None` for blank cells; ffill then filled those Nones with previous row's text. Template round-trips would fail. Removed `_forward_fill_headers()` from `_read_excel_bytes` and `_read_csv_bytes`. |
+| 10 | 2026-03-05 | Percentage strings parsed as fractions in `_parse_number` | `"8%"` → `0.08`, `"5.5 %"` → `0.055`. Consistent with financial domain expectations where returns and allocations are entered as percentages in Excel but stored as fractions in the model. |
+| 11 | 2026-03-05 | Column header normalisation deferred to parse time via `_normalise_cols()` | Column headers are preserved as-is at read time. `_normalise_cols()` maps `str(col).strip().lower().replace(" ","_") → actual_col` at parse time. This avoids mutating the DataFrames and allows callers to inspect original headers while still matching case/whitespace variants. |
+| 12 | 2026-03-05 | Empty sheet check before `_normalise_cols()` in `_parse_portfolio` | `_strip_blank()` on a header-only DataFrame drops all columns (trivially all-null), causing `_normalise_cols()` to return `{}` and producing a misleading "Required column not found" error. Added `if len(assets_df) == 0: raise DataValidationError(...)` before any column resolution. |
 
 ---
 
@@ -168,6 +170,8 @@ Record any decision made during implementation that deviates from or clarifies t
 | 3 | 2026-03-05 | `float('inf')` in ranging serializes to null in JSON | RESOLVED | Added `_safe_range_float()` in solver.py; changed type to `float \| None` in models.py |
 | 4 | 2026-03-05 | Integration test: `x_limit` shadow price was 0 when var had explicit ub | RESOLVED | Remove variable upper bound; enforce via constraint only (matches CLAUDE.md known values) |
 | 5 | 2026-03-05 | Scheduling binary vars with ub=0 (skill block) not respected by solver | RESOLVED | `_build_highs()` was hardcoding [0,1] for all binary vars. Fixed to use `min(1.0, ub)` so that ub=0 blocks are passed to HiGHS correctly. |
+| 6 | 2026-03-05 | Template `Workers` sheet — `Unavailable_Shifts` showed description text instead of empty string | RESOLVED | `_forward_fill_headers()` (df.ffill()) in `_read_excel_bytes` propagated the description row into blank cells. Removed ffill calls from both Excel and CSV reader paths. |
+| 7 | 2026-03-05 | `_strip_blank` drops all columns from header-only (empty data) DataFrame | RESOLVED | `dropna(axis=1, how="all")` on a DataFrame with zero rows drops all columns since every column is trivially all-null. Added explicit `if len(df) == 0` early-exit in `_parse_portfolio` before calling `_normalise_cols`. |
 
 ---
 
@@ -199,8 +203,8 @@ Update after each phase.
 | 2 ver | 3             | 3             | 0             | Cross-phase integration: LP roundtrip, infeasible IIS, JSON completeness |
 | 3     | 94            | 94            | 0             | LP/MIP/Portfolio/Scheduling build + integration tests (weights sum, coverage, infeasible) |
 | 3 ver | 4             | 4             | 0             | Full pipeline: LP, MIP knapsack, Portfolio QP, Scheduling binary MIP (end-to-end) |
-| Total | 252           | 252           | 0             | All phases combined |
-| 4     |               |               |               |       |
+| 4     | 68            | 68            | 0             | Excel/CSV read, write results, templates, DataFrame→model, messy data, round-trip, errors |
+| Total | 320           | 320           | 0             | All phases combined |
 | 5     |               |               |               |       |
 | 6     |               |               |               |       |
 | 7     |               |               |               |       |
