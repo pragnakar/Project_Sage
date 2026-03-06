@@ -65,10 +65,11 @@ logs/
 # Local dev
 *.local
 
-# Generated output files (solver results — not examples)
+# Generated output files (solver results and test artifacts — not examples)
 *_optimized.xlsx
 *_result.xlsx
 *_output.xlsx
+*_template.xlsx
 
 # Solver / HiGHS artifacts
 *.lp
