@@ -99,31 +99,95 @@ Or with a file:
 
 ---
 
-## Example Prompts
+## Usage Examples
 
-**Portfolio optimization**
-```
-Read examples/portfolio_5_assets.xlsx and solve it as a portfolio problem.
-Explain the result in detail and suggest what would change if I removed the 30% bond minimum.
+Each example shows the user prompt, which tool is called, a representative input payload, and the output SAGE returns.
+
+---
+
+### Example 1 — Solve a staffing LP
+
+**User prompt:** I need to figure out how many full-time and part-time employees to schedule to minimize cost. Full-time costs $200/day and covers 8 hours, part-time costs $100/day and covers 4 hours. I need at least 40 hours covered each day and at most 6 full-time staff.
+
+**Tool:** `solve_optimization`
+
+```json
+{
+  "problem_type": "lp",
+  "name": "staffing",
+  "variables": [
+    {"name": "ft", "lb": 0, "ub": 6},
+    {"name": "pt", "lb": 0}
+  ],
+  "constraints": [
+    {"name": "coverage", "expression": {"ft": 8, "pt": 4}, "sense": ">=", "rhs": 40}
+  ],
+  "objective": {"sense": "minimize", "coefficients": {"ft": 200, "pt": 100}}
+}
 ```
 
-**LP from scratch**
-```
-Solve this LP and show me the sensitivity analysis:
-maximize 5x + 4y subject to 6x + 4y <= 24, x + 2y <= 6, x,y >= 0
+**Output:** Optimal: ft=2, pt=6, cost=$1,000/day. The coverage constraint is binding. Sensitivity: each additional required hour costs $25.
+
+---
+
+### Example 2 — Diagnose an infeasible schedule
+
+**User prompt:** My shift schedule says workers need at least 3 people on Monday AND no more than 2 people total — is that solvable?
+
+**Tool:** `check_feasibility`
+
+```json
+{
+  "problem_type": "lp",
+  "name": "schedule_check",
+  "variables": [{"name": "workers", "lb": 0}],
+  "constraints": [
+    {"name": "min_staff", "expression": {"workers": 1}, "sense": ">=", "rhs": 3},
+    {"name": "max_staff", "expression": {"workers": 1}, "sense": "<=", "rhs": 2}
+  ],
+  "objective": {"sense": "minimize", "coefficients": {"workers": 0}}
+}
 ```
 
-**Infeasibility diagnosis**
-```
-I have a scheduling problem with 3 nurses and 6 required shifts.
-Check if it's feasible and if not, tell me which constraints conflict and how to fix them.
-```
+**Output:** INFEASIBLE. Conflicting constraints: `min_staff` (≥3) and `max_staff` (≤2) are mutually exclusive. Suggestion: relax `max_staff` to ≥3 (+50%) or reduce `min_staff` to ≤2 (−33%).
 
-**Template workflow**
-```
-Generate a portfolio template, I'll fill in my 8 assets,
-then solve it with risk aversion 2.5 and explain the sensitivity.
-```
+---
+
+### Example 3 — Portfolio optimization from Excel
+
+**User prompt:** I have a portfolio spreadsheet with expected returns and a covariance matrix. Optimize it for a target return of 8% while minimizing risk.
+
+**Tools:** `read_data_file` → `solve_from_file`
+
+`read_data_file` output: Detected sheets: `assets` (5 rows, columns: ticker, expected_return), `covariance` (5×5 matrix). Preview looks correct.
+
+`solve_from_file` output: Optimal allocation — AAPL: 32%, MSFT: 28%, GOOGL: 18%, BND: 22%, CASH: 0%. Portfolio variance: 0.0042 (σ=6.5%). Results written to `portfolio_optimized.xlsx`.
+
+---
+
+### Example 4 — Generate a template, solve, then explain in detail
+
+**User prompt:** Can you create a scheduling template I can fill in? Then after I solve it, give me a detailed explanation.
+
+**Step 1 — Tool:** `generate_template` with `problem_type: "scheduling"`
+
+Output: Template written to `scheduling_template.xlsx` with sheets: `workers` (name, availability, cost), `shifts` (name, start, end, required_count), `instructions`.
+
+**Step 2 — Tool:** `explain_solution` with `detail_level: "detailed"`
+
+Output: "The optimal schedule assigns Alice and Bob to the morning shift (cost: $480) and Carlos to the evening shift (cost: $220). The evening minimum-staffing constraint has a shadow price of $45 — each additional required worker increases cost by $45. The morning capacity constraint has 1 unit of slack."
+
+---
+
+### Example 5 — Integer programming with relaxation suggestions
+
+**User prompt:** I want to buy whole units of 3 products to maximize profit, but I can only spend $500 and store 20 cubic feet. Product A: $80, 3 ft³, $120 profit. Product B: $50, 5 ft³, $70 profit. Product C: $120, 2 ft³, $200 profit.
+
+**Tool:** `solve_optimization` (MIP with integer variables A, B, C; budget ≤ 500; storage ≤ 20; maximize 120A + 70B + 200C)
+
+**Tool:** `suggest_relaxations` (called automatically on infeasible sub-problem)
+
+**Output:** Optimal integer solution: A=2, B=0, C=3, profit=$840. If the budget constraint is binding, `suggest_relaxations` ranks options: relax budget by $20 (+4%) to $520, or drop 1 unit of C and add 1 unit of A for $760 profit within the original $500 limit.
 
 ---
 
