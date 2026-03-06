@@ -3,5 +3,5 @@ name = "sage-solver-mcp-bundle"
 version = "0.1.2"
 requires-python = ">=3.11"
 dependencies = [
-    "sage-solver-mcp>=0.1.2",
+    "sage-solver-mcp>=0.1.3",
 ]
