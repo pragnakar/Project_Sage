@@ -49,7 +49,7 @@ The result: AI shifts from *immediate but approximate* to *sustained and mathema
 pip install sage-mcp
 
 # From source (development)
-git clone https://github.com/pragnakar/sage
+git clone https://github.com/pragnakar/Project_Sage
 cd sage
 pip install -e sage-core/
 pip install -e sage-mcp/
