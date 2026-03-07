@@ -1,11 +1,11 @@
 # SAGE Build Log
 
-## Ship Summary — v0.1.0
+## Ship Summary — v0.1.3
 
-**Date:** 2026-03-05
-**Total tests:** 459 passing, 0 failing
-**Total commits:** 32
-**Packages:** sage-solver-core 0.1.0, sage-solver-mcp 0.1.0
+**Date:** 2026-03-07
+**Total tests:** 470 passing, 0 failing (393 sage-solver-core + 77 sage-solver-mcp)
+**Packages:** sage-solver-core 0.1.3, sage-solver-mcp 0.1.3
+**Published:** PyPI (`pip install sage-solver-mcp`), MCP Registry, Claude Desktop Extensions
 **Bugs caught by verification (all phases):**
 1. HiGHS float `inf` → `None` conversion (Phase 2)
 2. Binary variable upper_bound set to 0 by mistake (Phase 2)
@@ -37,6 +37,8 @@
 | 9       | 2026-03-05 | Phase 6 | Session 9 | — | sage-solver-mcp complete — server.py (7 tools), local_io.py, __main__.py, 53 tests, 435 total; entry point fix |
 | 10      | 2026-03-05 | Phase 7 | Session 10 | — | Polish + v0.1.0 — 4 example files, 19 smoke tests, README (174 lines), CONTRIBUTING.md, .gitignore, metadata; 454/454 tests; tagged v0.1.0 |
 | 11      | 2026-03-05 | Phase 7 verification | Session 11 | — | Ship-readiness check: found and fixed 4 blockers (example column/sheet names, pyproject.toml [project.urls] TOML bug); 459/459 tests; pip install works; re-tagged v0.1.0 |
+| 12      | 2026-03-07 | Post-ship: MCP transport fix | Session 12 | — | v0.1.2/0.1.3 — MCP string deserialization fix (variables/constraints/objective as JSON strings), field aliases (lb/ub/expression/direction), explicit tool schemas; +11 core tests, +24 MCP tests; 470/470 total |
+| 13      | 2026-03-07 | Post-ship: docs & repo cleanup | Session 13 | — | README redraft (5 usage examples, uvx Quick Start), ROADMAP.md created, .build/ directory (AGENT.md, SAGE_SPEC.md, BUILD_LOG.md), template xlsx moved to examples/, 470/470 tests |
 
 Update this table at the start and end of each session.
 
@@ -44,10 +46,10 @@ Update this table at the start and end of each session.
 
 ## Current Status
 
-**Active Phase:** COMPLETE — v0.1.0 VERIFIED AND SHIPPED
-**Active Branch:** main (tagged v0.1.0)
-**Last Completed Task:** Phase 7 final verification — 4 ship blockers caught and fixed; 459/459 tests; pip install -e works; all 4 examples solve end-to-end; re-tagged v0.1.0
-**Next Task:** Phase 8 (sage-cloud FastAPI) or PyPI publish
+**Active Phase:** COMPLETE — v0.1.3 VERIFIED AND SHIPPED
+**Active Branch:** main (tagged v0.1.3)
+**Last Completed Task:** Post-ship cleanup — MCP transport string deserialization fix, README/docs rewrite, .build/ repo reorganisation; 470/470 tests
+**Next Task:** Phase 2 (sage-cloud FastAPI — async remote solves)
 **Blockers:** None
 
 ---
@@ -152,20 +154,35 @@ Update this table at the start and end of each session.
 - [x] Merged to develop
 - [x] **PHASE 6 COMPLETE & VERIFIED** — 435/435 tests, on develop
 
-### Phase 7 — Examples, Docs & Polish
-- [ ] examples/portfolio_5_assets.xlsx
-- [ ] examples/nurse_scheduling.xlsx
-- [ ] examples/transport_routing.xlsx
-- [ ] examples/blending_problem.csv
-- [ ] End-to-end smoke test on all examples
-- [ ] README.md
-- [ ] CONTRIBUTING.md
-- [ ] .gitignore
-- [ ] pyproject.toml metadata finalized
-- [ ] Full installation flow verified
-- [ ] All tests passing across both packages
-- [ ] Merged to develop, merged to main, tagged v0.1.0
-- [ ] **PHASE 7 COMPLETE — MVP SHIPPED**
+### Phase 7 — Examples, Docs & Polish (COMPLETE)
+- [x] examples/portfolio_5_assets.xlsx
+- [x] examples/nurse_scheduling.xlsx
+- [x] examples/transport_routing.xlsx
+- [x] examples/blending_problem.csv
+- [x] End-to-end smoke test on all examples
+- [x] README.md
+- [x] CONTRIBUTING.md
+- [x] .gitignore
+- [x] pyproject.toml metadata finalized
+- [x] Full installation flow verified (pip install -e, uvx, Claude Desktop)
+- [x] All tests passing across both packages
+- [x] Merged to develop, merged to main, tagged v0.1.0
+- [x] **PHASE 7 COMPLETE — MVP SHIPPED**
+
+### Post-Phase 7 — Hardening & Repo Cleanup (COMPLETE)
+- [x] MCP transport string deserialization fix (variables/constraints/objective as JSON strings)
+- [x] Field aliases: lb/ub, expression, operator, direction on all model sub-fields
+- [x] Explicit tool schemas for solve_optimization and check_feasibility
+- [x] test_string_deserialization.py — 11 regression tests
+- [x] test_examples.py — 24 integration tests (MCP layer)
+- [x] Claude Desktop config updated to uvx (full-path fallback documented)
+- [x] README redraft — 5 detailed usage examples, uvx Quick Start with explanation
+- [x] ROADMAP.md — 5-phase vision + governance framework
+- [x] .build/ directory — AGENT.md (renamed from CLAUDE.md), SAGE_SPEC.md, BUILD_LOG.md
+- [x] examples/ — portfolio_template.xlsx, scheduling_template.xlsx committed
+- [x] Bumped to v0.1.3, published to PyPI
+- [x] 470/470 tests passing
+- [x] **POST-PHASE 7 COMPLETE — v0.1.3 SHIPPED**
 
 ---
 
@@ -245,7 +262,6 @@ Update after each phase.
 | 4     | 68            | 68            | 0             | Excel/CSV read, write results, templates, DataFrame→model, messy data, round-trip, errors |
 | 5     | 62            | 62            | 0             | explainer: 38 tests (detail levels, domain language, infeasibility, integration); relaxation: 24 tests (suggestions, ranking, re-solve, pipeline, edge cases) |
 | 6     | 53            | 53            | 0             | MCP server: 7 tool registration, all tool handlers, state sequences, 8 error cases, conversation simulations |
-| Total | 435           | 435           | 0             | All phases combined (382 sage-solver-core + 53 sage-solver-mcp) |
-| 7     |               |               |               |       |
-| 6     |               |               |               |       |
-| 7     |               |               |               |       |
+| 7     | 24            | 24            | 0             | test_examples.py — smoke tests on all 4 example files end-to-end (MCP layer) |
+| Post  | 35            | 35            | 0             | test_string_deserialization.py (11 core) + test_examples.py expansion (24 MCP) |
+| **Total** | **470**   | **470**       | **0**         | 393 sage-solver-core + 77 sage-solver-mcp |
