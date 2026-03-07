@@ -66,12 +66,14 @@ Add the SAGE server:
 {
   "mcpServers": {
     "sage": {
-      "command": "python",
-      "args": ["-m", "sage_solver_mcp"]
+      "command": "uvx",
+      "args": ["sage-solver-mcp"]
     }
   }
 }
 ```
+
+> **What is `uvx`?** It is a command from the [uv](https://github.com/astral-sh/uv) Python toolchain that runs a PyPI package ephemerally — no manual `pip install` required. If you have uv installed (`brew install uv` on macOS), `uvx sage-solver-mcp` fetches and runs SAGE automatically. If Claude Desktop cannot find `uvx` on your PATH, use the full path: `"/opt/homebrew/bin/uvx"` (macOS) or the output of `which uvx`.
 
 Restart Claude Desktop and you will see the SAGE tools in the toolbar.
 
