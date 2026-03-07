@@ -1,4 +1,6 @@
-# CLAUDE.md — Instructions for Claude Code
+# AGENT.md — Instructions for AI Coding Assistants
+
+> These instructions are written for Claude Code but they are valid for any AI-based coding assistant tool.
 
 ## Project
 

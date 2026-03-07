@@ -1,1 +1,1 @@
-@.build/CLAUDE.md
+@.build/AGENT.md
