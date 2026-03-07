@@ -11,18 +11,9 @@
   ],
   "mcpServers": {
     "sage": {
-      "command": "python",
-      "args": ["-m", "sage_solver_mcp"],
-      "env": {}
+      "command": "uvx",
+      "args": ["sage-solver-mcp"]
     }
   },
-  "_alternative_uvx": {
-    "mcpServers": {
-      "sage": {
-        "command": "uvx",
-        "args": ["sage-solver-mcp"],
-        "env": {}
-      }
-    }
-  }
+  "_note": "Use the full path to uvx if Claude Desktop cannot find it: /opt/homebrew/bin/uvx (macOS/Homebrew), ~/.local/bin/uvx (Linux pip install)"
 }
