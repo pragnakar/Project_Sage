@@ -2,7 +2,7 @@
 
 **SAGE** grounds AI in mathematical truth. It is a local MCP server that gives Claude Desktop — and any MCP-compatible agent — the ability to formulate, solve, and certify mathematical optimization problems using production-grade open-source solvers.
 
-> Status: **v0.1.0 — Alpha** · Author: Peter Pragnakar Atreides
+> Status: **v0.1.3 — Alpha** · Author: Peter Pragnakar Atreides
 
 ---
 
@@ -260,7 +260,7 @@ The long-term ambition is a planetary-scale optimization fabric: interconnected,
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup, test instructions, and branch conventions.
 
-459 tests · 0 failures · sage-solver-core 0.1.0 · sage-solver-mcp 0.1.0
+393 tests · 0 failures · sage-solver-core 0.1.3 · sage-solver-mcp 0.1.3
 
 ---
 
