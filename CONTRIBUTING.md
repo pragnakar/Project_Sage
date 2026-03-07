@@ -116,7 +116,7 @@ ruff format --check sage-solver-core/ sage-solver-mcp/
 1. Write tests for your change. New features need unit + integration tests.
 2. All tests must pass: `python -m pytest`
 3. Linting must be clean: `ruff check . && ruff format --check .`
-4. Update `BUILD_LOG.md` with a summary of what changed
+4. Update `.build/BUILD_LOG.md` with a summary of what changed
 5. Open a pull request targeting `develop`
 
 ---

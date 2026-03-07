@@ -67,8 +67,10 @@ sage/
 │   ├── transport_routing.xlsx
 │   └── blending_problem.csv
 │
-├── CLAUDE.md             ← Instructions for Claude Code
-├── SAGE_SPEC.md          ← This file
+├── .build/
+│   ├── CLAUDE.md         ← Instructions for Claude Code
+│   ├── SAGE_SPEC.md      ← This file
+│   └── BUILD_LOG.md      ← Phase-by-phase build history
 ├── README.md
 └── LICENSE               ← MIT
 ```
