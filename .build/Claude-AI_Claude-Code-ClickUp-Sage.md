@@ -56,7 +56,10 @@ Lists in Claude Code folder:
 - Workspace     (901113365506) — orientation notes, scratch reference
 - Chat          (901113365507) — async comms with claude.ai, prefix [FROM:CODE]
 - Activity Log  (901113365508) — per-session logs, create one each session
-- Skills        (901113365655) — coordination templates (this file lives here)
+- Skills        (901113365655) — coordination templates, runbooks (this file lives here)
+- Context Bank  (901113367117) — live project state cards, rehydrate here each session
+- Lessons Learned (901113367118) — sticky knowledge: gotchas, patterns, errors solved
+- Project Index (901113367120) — quick-reference cards: key IDs, versions, links
 
 Session startup sequence (run in order):
 1. Read Orientation Notes (task 868hvvjtg) from Workspace list
