@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "sage-cloud"
+name = "sage-solver-cloud"
 version = "0.1.0"
 description = "SAGE cloud API — FastAPI wrapper for remote MCP access (V2, not yet implemented)"
 readme = "README.md"
@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["sage_cloud"]
+packages = ["sage_solver_cloud"]
 
 [tool.mypy]
 python_version = "3.11"

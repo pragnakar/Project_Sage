@@ -33,7 +33,7 @@ indent-style = "space"
 line-ending = "auto"
 
 [lint.isort]
-known-first-party = ["sage_solver_core", "sage_solver_mcp", "sage_cloud"]
+known-first-party = ["sage_solver_core", "sage_solver_mcp", "sage_solver_cloud"]
 
 line-length = 100
 target-version = "py311"

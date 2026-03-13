@@ -1,4 +1,4 @@
-"""SAGE Core — File I/O tests (Phase 4).
+"""SAGE Core — File I/O tests (Stage 4).
 
 Tests cover:
 - read_data / read_data_from_bytes (Excel + CSV)

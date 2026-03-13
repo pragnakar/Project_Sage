@@ -26,7 +26,7 @@ SAGE (Solver-Augmented Grounding Engine) is a local MCP server that gives Claude
 | Published | PyPI (`pip install sage-solver-mcp`), MCP Registry, Claude Desktop Extensions |
 | Claude Desktop config | `command: "/opt/homebrew/bin/uvx"`, `args: ["sage-solver-mcp"]` |
 | Branch | `main` (all development merged, no open branches) |
-| Active Phase | Phase 1 COMPLETE. Next: Phase 2 (sage-cloud FastAPI) |
+| Active Phase | Roadmap Phase 1 COMPLETE. Next: Roadmap Phase 2 (sage-solver-cloud FastAPI) |
 
 ---
 
@@ -64,8 +64,8 @@ Project_Sage/
 │   ├── tests/                   ← 77 tests
 │   └── claude_desktop_config.json
 │
-├── sage-cloud/                  ← PLACEHOLDER ONLY — do not build yet
-│   └── sage_cloud/
+├── sage-solver-cloud/           ← PLACEHOLDER ONLY — do not build yet
+│   └── sage_solver_cloud/
 │       ├── __init__.py
 │       ├── api.py               ← FastAPI routes (stub)
 │       ├── auth.py              ← API key / OAuth (stub)
@@ -194,7 +194,7 @@ These decisions resolved ambiguities in the spec. Respect them in future work.
 | 2 | QP ranging returns `None` | HiGHS does not support ranging for QP problems, only LP. |
 | 3 | `_safe_range_float` clips values ≥ 1e29 or NaN to `None` | Catches both `kHighsInf` and Python `float('inf')` uniformly. |
 | 4 | Portfolio builder uses `minimize` sense | HiGHS QP requires minimize + positive semi-definite Q. Negate returns (`c_i = -r_i`), use `Q = 2λCov`. |
-| 5 | Scheduling consecutive-days: rolling window sum constraint | `sum_{d'=d}^{d+mc} sum_s x[w,s,d'] <= mc × S` (RHS is `max_consecutive_days × num_shifts`, NOT just `max_consecutive_days`). This was a bug fixed in Phase 5. |
+| 5 | Scheduling consecutive-days: rolling window sum constraint | `sum_{d'=d}^{d+mc} sum_s x[w,s,d'] <= mc × S` (RHS is `max_consecutive_days × num_shifts`, NOT just `max_consecutive_days`). This was a bug fixed in Stage 5. |
 | 6 | Unavailability + skill blocks: `variable.upper_bound = 0` | Cleaner than equality constraints; HiGHS handles bound reductions efficiently. |
 | 7 | Binary variable `ub=0` must be passed to HiGHS via `addVar` | `_build_highs()` was hardcoding `addVar(0.0, 1.0)` for all binary vars. Fix: `min(1.0, ub)` in `addVar`. |
 | 8 | `ffill()` removed from Excel/CSV reader | `df.ffill()` propagated description-row strings into blank data cells. Removed `_forward_fill_headers()` from both reader paths. |
@@ -207,44 +207,44 @@ These decisions resolved ambiguities in the spec. Respect them in future work.
 
 ## Known Limitations (v0.1.3)
 
-- **Deterministic only** — no stochastic programming, no scenario analysis (Phase 2 scope)
+- **Deterministic only** — no stochastic programming, no scenario analysis (Roadmap Phase 2 scope)
 - **Single-period models** — no multi-stage or time-series optimization
 - **No nonlinear support** — QP only (Markowitz portfolio); no general NLP
 - **Deeply infeasible models** — when demand far exceeds total system capacity, `suggest_relaxations` returns `[]`. This is correct behavior (no single-constraint fix possible), not a bug.
 - **No NL → model translation** — the LLM fills structured schemas; SAGE validates and solves. Phase 1.5 scope.
-- **Local only** — no ChatGPT integration (requires remote SSE server). Phase 2 scope.
+- **Local only** — no ChatGPT integration (requires remote SSE server). Roadmap Phase 2 scope.
 
 ---
 
 ## Phase Completion Status
 
-| Phase | Status | Version | Tests |
+| Build Stage / Roadmap Phase | Status | Version | Tests |
 |---|---|---|---|
-| Phase 1 — Schemas (models.py) | COMPLETE | v0.1.0 | 95 |
-| Phase 2 — Solver (solver.py) | COMPLETE | v0.1.0 | 59 |
-| Phase 3 — Builder (builder.py) | COMPLETE | v0.1.0 | 98 |
-| Phase 4 — File I/O (fileio.py) | COMPLETE | v0.1.0 | 68 |
-| Phase 5 — Intelligence (explainer + relaxation) | COMPLETE | v0.1.0 | 62 |
-| Phase 6 — MCP Server (server.py) | COMPLETE | v0.1.0 | 53 |
-| Phase 7 — Examples, Docs & Polish | COMPLETE | v0.1.0 | 24 |
-| Post-Phase 7 — MCP transport hardening + repo cleanup | COMPLETE | v0.1.3 | 35 |
-| **Phase 1.5 — NL → Optimization Model** | **NEXT** | v0.3 planned | — |
-| Phase 2 — sage-cloud FastAPI | Planned | v0.2 planned | — |
-| Phase 2.5 — Domain Template Library | Planned | v0.6 planned | — |
-| Phase 3 — Decision Intelligence Platform | Planned | v1.0 planned | — |
-| Phase 4 — Planetary-Scale Solver | Moonshot | v2.0+ | — |
+| Stage 1 — Schemas (models.py) | COMPLETE | v0.1.0 | 95 |
+| Stage 2 — Solver (solver.py) | COMPLETE | v0.1.0 | 59 |
+| Stage 3 — Builder (builder.py) | COMPLETE | v0.1.0 | 98 |
+| Stage 4 — File I/O (fileio.py) | COMPLETE | v0.1.0 | 68 |
+| Stage 5 — Intelligence (explainer + relaxation) | COMPLETE | v0.1.0 | 62 |
+| Stage 6 — MCP Server (server.py) | COMPLETE | v0.1.0 | 53 |
+| Stage 7 — Examples, Docs & Polish | COMPLETE | v0.1.0 | 24 |
+| Post-Stage 7 — MCP transport hardening + repo cleanup | COMPLETE | v0.1.3 | 35 |
+| **Roadmap Phase 1.5 — NL → Optimization Model** | **NEXT** | v0.3 planned | — |
+| Roadmap Phase 2 — sage-solver-cloud FastAPI | Planned | v0.2 planned | — |
+| Roadmap Phase 2.5 — Domain Template Library | Planned | v0.6 planned | — |
+| Roadmap Phase 3 — Decision Intelligence Platform | Planned | v1.0 planned | — |
+| Roadmap Phase 4 — Planetary-Scale Solver | Moonshot | v2.0+ | — |
 
 ---
 
-## Next Phase — sage-cloud (v0.2)
+## Next — Roadmap Phase 2: sage-solver-cloud (v0.2)
 
 **Goal:** Make SAGE accessible remotely so any LLM client (including ChatGPT) can call it via SSE/HTTP.
 
-**What to build in `sage-cloud/`:**
+**What to build in `sage-solver-cloud/`:**
 
 ```
-sage-cloud/
-└── sage_cloud/
+sage-solver-cloud/
+└── sage_solver_cloud/
     ├── api.py       ← FastAPI app; routes mirror the 7 MCP tools
     ├── auth.py      ← API key authentication (simple header-based for v0.2)
     ├── queue.py     ← Async job management (asyncio or Celery)
@@ -252,13 +252,13 @@ sage-cloud/
 ```
 
 **Key constraints:**
-- `sage_cloud` imports `sage-solver-core` — never re-implements solver logic
+- `sage_solver_cloud` imports `sage-solver-core` — never re-implements solver logic
 - Multi-tenant: each request gets isolated state (no module-level `ServerState`)
 - Async-first: long-running solves must not block the event loop
 - Remote MCP transport: SSE (Server-Sent Events), not stdio
 - Auth in V2 (unlike V1 local which has none)
 
-**Reference the ROADMAP.md Phase 2 section** for full feature scope before building.
+**Reference the ROADMAP.md Roadmap Phase 2 section** for full feature scope before building.
 
 ---
 

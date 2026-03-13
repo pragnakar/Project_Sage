@@ -1,4 +1,4 @@
-"""Full pipeline integration tests: Phase 1 → Phase 2 → Phase 3.
+"""Full pipeline integration tests: Stage 1 → Stage 2 → Stage 3.
 
 Verifies end-to-end flows: domain model → SolverInput → SolverResult.
 """

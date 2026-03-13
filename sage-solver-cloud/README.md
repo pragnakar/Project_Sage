@@ -1,4 +1,4 @@
-# sage-cloud
+# sage-solver-cloud
 
 Cloud API wrapper for SAGE (Solver-Augmented Generation Engine) — V2, not yet implemented.
 

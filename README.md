@@ -216,7 +216,7 @@ Project_Sage/
 │       ├── fileio.py   # Excel/CSV read/write, template generation
 │       └── explainer.py# Natural language solution narration + IIS explanation
 ├── sage-solver-mcp/           # Local MCP server (this package — v0.1)
-├── sage-cloud/         # Cloud API (future — v0.2)
+├── sage-solver-cloud/  # Cloud API (future — v0.2)
 └── examples/           # Ready-to-use example files
 ```
 
@@ -250,7 +250,7 @@ Assign workers to shifts over a planning horizon. Constraints: min/max workers p
 | Phase | Focus |
 |---|---|
 | v0.1 (now) | LP, MIP, Portfolio QP, Scheduling — 7 MCP tools, local stdio server |
-| v0.2 | sage-cloud FastAPI — remote deployment, async long-running solves |
+| v0.2 | sage-solver-cloud FastAPI — remote deployment, async long-running solves |
 | v0.3 | Simulation — Monte Carlo, discrete-event, stochastic programming |
 | v1.0 | Decision Intelligence Platform — industry templates, solver marketplace |
 

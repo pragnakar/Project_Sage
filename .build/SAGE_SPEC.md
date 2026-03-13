@@ -51,8 +51,8 @@ sage/
 │   ├── pyproject.toml
 │   └── claude_desktop_config.json
 │
-├── sage-cloud/          ← V2: Cloud API (built later)
-│   ├── sage_cloud/
+├── sage-solver-cloud/   ← V2: Cloud API (built later)
+│   ├── sage_solver_cloud/
 │   │   ├── __init__.py
 │   │   ├── api.py           ← FastAPI routes
 │   │   ├── auth.py          ← API key / OAuth
@@ -68,9 +68,9 @@ sage/
 │   └── blending_problem.csv
 │
 ├── .build/
-│   ├── CLAUDE.md         ← Instructions for Claude Code
+│   ├── AGENT.md          ← Instructions for AI coding assistants
 │   ├── SAGE_SPEC.md      ← This file
-│   └── BUILD_LOG.md      ← Phase-by-phase build history
+│   └── BUILD_LOG.md      ← Stage-by-stage build history
 ├── README.md
 └── LICENSE               ← MIT
 ```
@@ -81,7 +81,7 @@ sage/
 
 This means:
 - sage-solver-mcp imports sage-solver-core, reads local files, passes DataFrames to core, gets results back, writes local files
-- sage-cloud imports sage-solver-core, receives uploads via HTTP, passes DataFrames to core, gets results back, returns via API
+- sage-solver-cloud imports sage-solver-core, receives uploads via HTTP, passes DataFrames to core, gets results back, returns via API
 
 The core never changes between versions.
 
@@ -112,7 +112,7 @@ User speaks to ChatGPT / Claude / any client
     │ MCP over SSE/HTTP (remote)
     │
 ┌───▼──────────────────────────────────┐
-│   sage-cloud (FastAPI on cloud)      │
+│   sage-solver-cloud (FastAPI on cloud)│
 │   Auth → Queue → sage-solver-core → S3     │
 │   Multi-tenant, rate-limited         │
 └──────────────────────────────────────┘
@@ -614,7 +614,7 @@ mcp >= 1.0              # MCP Python SDK
 sage-solver-core               # Local dependency
 ```
 
-### Cloud Dependencies (sage-cloud, V2)
+### Cloud Dependencies (sage-solver-cloud, V2)
 ```
 fastapi >= 0.110
 uvicorn >= 0.27
@@ -627,35 +627,35 @@ sage-solver-core               # Same core
 
 ## 6. Build Sequence
 
-### Phase 1: Foundation (Hours 1-8)
+### Stage 1: Foundation (Hours 1-8)
 
 1. **Set up project structure** — monorepo with three packages, pyproject.toml for each
 2. **Implement models.py** — all Pydantic schemas (LPModel, MIPModel, PortfolioModel, SchedulingModel, SolverResult, IISResult)
 3. **Implement solver.py** — HiGHS wrapper for LP and MIP, SolverResult extraction, basic sensitivity analysis
 4. **Write tests** — solve known LP/MIP problems, verify optimal values match expected
 
-### Phase 2: Model Builder + File I/O (Hours 9-20)
+### Stage 2: Model Builder + File I/O (Hours 9-20)
 
 5. **Implement builder.py** — LP passthrough, portfolio→QP builder, scheduling→MIP builder, model validation
 6. **Implement fileio.py** — Excel/CSV reader with messy data handling, template generator, results writer with formatting
 7. **Implement dataframe_to_model** — the critical bridge from Excel data to typed models
 8. **Write tests** — round-trip tests (create template → fill data → parse → solve → write results)
 
-### Phase 3: Intelligence Layer (Hours 21-30)
+### Stage 3: Intelligence Layer (Hours 21-30)
 
 9. **Implement explainer.py** — result narration at three detail levels, sensitivity analysis narrative
 10. **Implement relaxation.py** — IIS extraction, relaxation computation, suggestion ranking
 11. **Implement infeasibility explanation** — translate IIS into human-readable diagnosis
 12. **Write tests** — intentionally infeasible problems, verify IIS correctness, verify explanations make sense
 
-### Phase 4: MCP Server (Hours 31-38)
+### Stage 4: MCP Server (Hours 31-38)
 
 13. **Implement sage-solver-mcp/server.py** — all 7 MCP tools, proper error handling, structured responses
 14. **Implement local_io.py** — filesystem bridge (resolve paths, check file existence, handle permissions)
 15. **End-to-end testing** — connect to Claude Desktop, run full conversation flows
 16. **Edge case handling** — solver timeout, malformed input, file not found, unsupported formats
 
-### Phase 5: Polish + Ship (Hours 39-45)
+### Stage 5: Polish + Ship (Hours 39-45)
 
 17. **Create example files** — 4 demo Excel/CSV files with realistic data
 18. **Write README.md** — installation, quick start, demo GIFs, architecture diagram
@@ -827,7 +827,7 @@ Example: If a column is missing from an Excel file:
 - Submit to awesome-mcp-servers GitHub lists
 
 ### V2 Cloud (unlocks ChatGPT)
-- Build sage-cloud with FastAPI + SSE
+- Build sage-solver-cloud with FastAPI + SSE
 - Register as ChatGPT MCP App for Business/Enterprise
 - Deploy to Cloudflare Workers or Railway
 

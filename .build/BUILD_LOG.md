@@ -7,15 +7,15 @@
 **Packages:** sage-solver-core 0.1.3, sage-solver-mcp 0.1.3
 **Published:** PyPI (`pip install sage-solver-mcp`), MCP Registry, Claude Desktop Extensions
 **Bugs caught by verification (all phases):**
-1. HiGHS float `inf` → `None` conversion (Phase 2)
-2. Binary variable upper_bound set to 0 by mistake (Phase 2)
-3. Scheduling consecutive_days constraint off-by-one (Phase 5)
-4. MCP server entry point pointing to `__main__:main` instead of `server:main` (Phase 6)
-5. `read_data()` called with bytes instead of filepath (Phase 6)
-6. `ValidationError` not caught in handler direct calls (Phase 6)
-7. Example xlsx column/sheet names not matching fileio.py parsers (Phase 7 verification)
-8. `[project.urls]` in pyproject.toml captured `dependencies` as a URL key — broke `pip install -e` (Phase 7 verification)
-9. `==` Excel formula issue — equality constraints in generic_lp must be split into `>=`/`<=` pair (Phase 7 verification)
+1. HiGHS float `inf` → `None` conversion (Stage 2)
+2. Binary variable upper_bound set to 0 by mistake (Stage 2)
+3. Scheduling consecutive_days constraint off-by-one (Stage 5)
+4. MCP server entry point pointing to `__main__:main` instead of `server:main` (Stage 6)
+5. `read_data()` called with bytes instead of filepath (Stage 6)
+6. `ValidationError` not caught in handler direct calls (Stage 6)
+7. Example xlsx column/sheet names not matching fileio.py parsers (Stage 7 verification)
+8. `[project.urls]` in pyproject.toml captured `dependencies` as a URL key — broke `pip install -e` (Stage 7 verification)
+9. `==` Excel formula issue — equality constraints in generic_lp must be split into `>=`/`<=` pair (Stage 7 verification)
 
 **Lines of code (production):** 5,861 (11 files across sage-solver-core + sage-solver-mcp)
 **Example problems:** portfolio (5 assets, optimal), nurse scheduling (8 nurses, intentionally infeasible), transport routing (3 warehouses → 5 stores, optimal $2,472), blending (6 ingredients, optimal $23.47/100kg)
@@ -26,17 +26,17 @@
 
 | Session | Date | Phase | Duration | Credits Used (est.) | Notes |
 |---------|------|-------|----------|---------------------|-------|
-| 1       | 2026-03-05 | Phase 1 | Session 1 | — | Monorepo init, all schemas, 95 tests passing, merged to develop |
-| 2       | 2026-03-05 | Phase 1 verification | Session 2 | — | All checks passed, deps verified, on develop, ready for Phase 2 |
-| 3       | 2026-03-05 | Phase 2 | Session 3 | — | solver.py complete — LP/MIP/QP/IIS/sensitivity, 56/56 tests, merged to develop |
-| 4       | 2026-03-05 | Phase 2 verification | Session 4 | — | 154/154 tests pass, float inf fix, integration tests, QP verified, ready for Phase 3 |
-| 5       | 2026-03-05 | Phase 3 | Session 5 | — | builder.py complete — LP/MIP/Portfolio/Scheduling/validate_model, 94 tests, 248 total |
-| 6       | 2026-03-05 | Phase 3 verification | Session 6 | — | solver binary-var ub=0 fix, test_full_pipeline.py (4 tests), 252 total, merged to develop |
-| 7       | 2026-03-05 | Phase 4 | Session 7 | — | fileio.py complete — read/write/template/bridge, 68 tests, 320 total, merged to develop |
-| 8       | 2026-03-05 | Phase 5 | Session 8 | — | explainer.py + relaxation.py complete — 62 new tests, 382 total; builder consecutive_days bug fix |
-| 9       | 2026-03-05 | Phase 6 | Session 9 | — | sage-solver-mcp complete — server.py (7 tools), local_io.py, __main__.py, 53 tests, 435 total; entry point fix |
-| 10      | 2026-03-05 | Phase 7 | Session 10 | — | Polish + v0.1.0 — 4 example files, 19 smoke tests, README (174 lines), CONTRIBUTING.md, .gitignore, metadata; 454/454 tests; tagged v0.1.0 |
-| 11      | 2026-03-05 | Phase 7 verification | Session 11 | — | Ship-readiness check: found and fixed 4 blockers (example column/sheet names, pyproject.toml [project.urls] TOML bug); 459/459 tests; pip install works; re-tagged v0.1.0 |
+| 1       | 2026-03-05 | Stage 1 | Session 1 | — | Monorepo init, all schemas, 95 tests passing, merged to develop |
+| 2       | 2026-03-05 | Stage 1 verification | Session 2 | — | All checks passed, deps verified, on develop, ready for Stage 2 |
+| 3       | 2026-03-05 | Stage 2 | Session 3 | — | solver.py complete — LP/MIP/QP/IIS/sensitivity, 56/56 tests, merged to develop |
+| 4       | 2026-03-05 | Stage 2 verification | Session 4 | — | 154/154 tests pass, float inf fix, integration tests, QP verified, ready for Stage 3 |
+| 5       | 2026-03-05 | Stage 3 | Session 5 | — | builder.py complete — LP/MIP/Portfolio/Scheduling/validate_model, 94 tests, 248 total |
+| 6       | 2026-03-05 | Stage 3 verification | Session 6 | — | solver binary-var ub=0 fix, test_full_pipeline.py (4 tests), 252 total, merged to develop |
+| 7       | 2026-03-05 | Stage 4 | Session 7 | — | fileio.py complete — read/write/template/bridge, 68 tests, 320 total, merged to develop |
+| 8       | 2026-03-05 | Stage 5 | Session 8 | — | explainer.py + relaxation.py complete — 62 new tests, 382 total; builder consecutive_days bug fix |
+| 9       | 2026-03-05 | Stage 6 | Session 9 | — | sage-solver-mcp complete — server.py (7 tools), local_io.py, __main__.py, 53 tests, 435 total; entry point fix |
+| 10      | 2026-03-05 | Stage 7 | Session 10 | — | Polish + v0.1.0 — 4 example files, 19 smoke tests, README (174 lines), CONTRIBUTING.md, .gitignore, metadata; 454/454 tests; tagged v0.1.0 |
+| 11      | 2026-03-05 | Stage 7 verification | Session 11 | — | Ship-readiness check: found and fixed 4 blockers (example column/sheet names, pyproject.toml [project.urls] TOML bug); 459/459 tests; pip install works; re-tagged v0.1.0 |
 | 12      | 2026-03-07 | Post-ship: MCP transport fix | Session 12 | — | v0.1.2/0.1.3 — MCP string deserialization fix (variables/constraints/objective as JSON strings), field aliases (lb/ub/expression/direction), explicit tool schemas; +11 core tests, +24 MCP tests; 470/470 total |
 | 13      | 2026-03-07 | Post-ship: docs & repo cleanup | Session 13 | — | README redraft (5 usage examples, uvx Quick Start), ROADMAP.md created, .build/ directory (AGENT.md, SAGE_SPEC.md, BUILD_LOG.md), template xlsx moved to examples/, 470/470 tests |
 
@@ -49,16 +49,16 @@ Update this table at the start and end of each session.
 **Active Phase:** COMPLETE — v0.1.3 VERIFIED AND SHIPPED
 **Active Branch:** main (tagged v0.1.3)
 **Last Completed Task:** Post-ship cleanup — MCP transport string deserialization fix, README/docs rewrite, .build/ repo reorganisation; 470/470 tests
-**Next Task:** Phase 2 (sage-cloud FastAPI — async remote solves)
+**Next Task:** Phase 2 (sage-solver-cloud FastAPI — async remote solves)
 **Blockers:** None
 
 ---
 
-## Phase Progress
+## Stage Progress
 
-### Phase 1 — Project Structure & Schemas
+### Stage 1 — Project Structure & Schemas
 - [x] Monorepo structure created
-- [x] pyproject.toml files (sage-solver-core, sage-solver-mcp, sage-cloud placeholder)
+- [x] pyproject.toml files (sage-solver-core, sage-solver-mcp, sage-solver-cloud placeholder)
 - [x] ruff.toml and .pre-commit-config.yaml
 - [x] sage_solver_core/__init__.py with version
 - [x] models.py — LP schemas (LPVariable, LinearConstraint, LinearObjective, LPModel)
@@ -69,9 +69,9 @@ Update this table at the start and end of each session.
 - [x] models.py — Error hierarchy (SAGEError, DataValidationError, ModelBuildError, SolverError, FileIOError)
 - [x] test_models.py — all tests written and passing (95/95)
 - [x] Committed to feature/phase-1-project-structure
-- [x] **PHASE 1 COMPLETE** — awaiting review
+- [x] **STAGE 1 COMPLETE** — awaiting review
 
-### Phase 2 — Solver Wrapper (VERIFIED)
+### Stage 2 — Solver Wrapper (VERIFIED)
 - [x] solver.py — HiGHS LP wrapper
 - [x] solver.py — HiGHS MIP wrapper
 - [x] solver.py — QP mode for quadratic objectives
@@ -85,10 +85,10 @@ Update this table at the start and end of each session.
 - [x] test_solver.py — Sensitivity test
 - [x] test_solver.py — Timeout test
 - [x] Committed to feature/phase-2-solver
-- [x] **PHASE 2 COMPLETE** — merged to develop
-- [x] **PHASE 2 VERIFIED** — 154/154 tests, float inf fix, integration + QP check done
+- [x] **STAGE 2 COMPLETE** — merged to develop
+- [x] **STAGE 2 VERIFIED** — 154/154 tests, float inf fix, integration + QP check done
 
-### Phase 3 — Model Builder (COMPLETE)
+### Stage 3 — Model Builder (COMPLETE)
 - [x] builder.py — build_from_lp (var bounds, constraint matrix, obj, ModelBuildError)
 - [x] builder.py — build_from_mip (type mapping, binary bounds, solver params)
 - [x] builder.py — build_from_portfolio (Markowitz QP: negated returns, 2λCov, allocation + sector constraints, forbidden assets, symmetry check)
@@ -103,9 +103,9 @@ Update this table at the start and end of each session.
 - [x] fix(solver) — binary variable ub=0 now respected (skill/unavailability blocking)
 - [x] Committed to feature/phase-3-builder
 - [x] Merged to develop
-- [x] **PHASE 3 COMPLETE & VERIFIED** — 252/252 tests, on develop
+- [x] **STAGE 3 COMPLETE & VERIFIED** — 252/252 tests, on develop
 
-### Phase 4 — File I/O (Excel/CSV) (COMPLETE)
+### Stage 4 — File I/O (Excel/CSV) (COMPLETE)
 - [x] fileio.py — read_data (Excel + CSV, auto-detect, encoding fallback)
 - [x] fileio.py — read_data_from_bytes (same from bytes buffer)
 - [x] fileio.py — write_results_excel (5-sheet formatted workbook)
@@ -115,9 +115,9 @@ Update this table at the start and end of each session.
 - [x] test_fileio.py — 68 tests: read, write, template, bridge, messy data, round-trip, error handling
 - [x] Committed to feature/phase-4-fileio
 - [x] Merged to develop
-- [x] **PHASE 4 COMPLETE & VERIFIED** — 320/320 tests, on develop
+- [x] **STAGE 4 COMPLETE & VERIFIED** — 320/320 tests, on develop
 
-### Phase 5 — Explainer & Relaxation (COMPLETE)
+### Stage 5 — Explainer & Relaxation (COMPLETE)
 - [x] explainer.py — explain_result (brief/standard/detailed)
 - [x] explainer.py — explain_infeasibility with quantitative demand/capacity
 - [x] explainer.py — domain-specific language (portfolio/scheduling/LP/MIP)
@@ -132,9 +132,9 @@ Update this table at the start and end of each session.
 - [x] fix(builder) — consecutive_days RHS corrected: mc × S (was just mc, wrong for multi-shift)
 - [x] Committed to feature/phase-5-intelligence
 - [x] Merged to develop
-- [x] **PHASE 5 COMPLETE & VERIFIED** — 382/382 tests, on develop
+- [x] **STAGE 5 COMPLETE & VERIFIED** — 382/382 tests, on develop
 
-### Phase 6 — MCP Server (COMPLETE)
+### Stage 6 — MCP Server (COMPLETE)
 - [x] server.py — MCP server setup with official Python MCP SDK (mcp>=1.0), stdio transport
 - [x] server.py — Tool: solve_optimization (LP/MIP/portfolio/scheduling, auto type detect)
 - [x] server.py — Tool: read_data_file (Excel/CSV preview with sheet/row/column summary)
@@ -152,9 +152,9 @@ Update this table at the start and end of each session.
 - [x] fix: console_scripts entry point corrected to sage_solver_mcp.server:main
 - [x] Committed to feature/phase-6-mcp-server
 - [x] Merged to develop
-- [x] **PHASE 6 COMPLETE & VERIFIED** — 435/435 tests, on develop
+- [x] **STAGE 6 COMPLETE & VERIFIED** — 435/435 tests, on develop
 
-### Phase 7 — Examples, Docs & Polish (COMPLETE)
+### Stage 7 — Examples, Docs & Polish (COMPLETE)
 - [x] examples/portfolio_5_assets.xlsx
 - [x] examples/nurse_scheduling.xlsx
 - [x] examples/transport_routing.xlsx
@@ -167,9 +167,9 @@ Update this table at the start and end of each session.
 - [x] Full installation flow verified (pip install -e, uvx, Claude Desktop)
 - [x] All tests passing across both packages
 - [x] Merged to develop, merged to main, tagged v0.1.0
-- [x] **PHASE 7 COMPLETE — MVP SHIPPED**
+- [x] **STAGE 7 COMPLETE — MVP SHIPPED**
 
-### Post-Phase 7 — Hardening & Repo Cleanup (COMPLETE)
+### Post-Stage 7 — Hardening & Repo Cleanup (COMPLETE)
 - [x] MCP transport string deserialization fix (variables/constraints/objective as JSON strings)
 - [x] Field aliases: lb/ub, expression, operator, direction on all model sub-fields
 - [x] Explicit tool schemas for solve_optimization and check_feasibility
@@ -182,7 +182,7 @@ Update this table at the start and end of each session.
 - [x] examples/ — portfolio_template.xlsx, scheduling_template.xlsx committed
 - [x] Bumped to v0.1.3, published to PyPI
 - [x] 470/470 tests passing
-- [x] **POST-PHASE 7 COMPLETE — v0.1.3 SHIPPED**
+- [x] **POST-STAGE 7 COMPLETE — v0.1.3 SHIPPED**
 
 ---
 
@@ -239,24 +239,24 @@ Track what was installed and any issues encountered.
 |---------|---------|--------|-------|
 | highspy | 1.13.1  | verified | HiGHS solver v1.13.1, ARM Mac OK, h.version() confirmed |
 | ortools | 9.15.6755 | verified | CP-SAT + LP/MIP wrappers import OK |
-| pandas  | 3.0.1   | verified | Phase 1 + ortools dep |
-| openpyxl| 3.1.5   | verified | Phase 1 dev install succeeded |
+| pandas  | 3.0.1   | verified | Stage 1 + ortools dep |
+| openpyxl| 3.1.5   | verified | Stage 1 dev install succeeded |
 | pydantic| 2.12.5  | verified | All 95 schema tests pass |
-| numpy   | 2.4.2   | verified | Phase 1 + highspy dep |
-| mcp     | 1.26.0  | verified | Phase 6 — stdio transport, 7 tools registered, anyio/httpx/starlette installed as deps |
+| numpy   | 2.4.2   | verified | Stage 1 + highspy dep |
+| mcp     | 1.26.0  | verified | Stage 6 — stdio transport, 7 tools registered, anyio/httpx/starlette installed as deps |
 | ruff    | >=0.1   | installed | Configured via ruff.toml |
 
 ---
 
 ## Test Results
 
-Update after each phase.
+Update after each stage.
 
-| Phase | Tests Written | Tests Passing | Tests Failing | Notes |
+| Stage | Tests Written | Tests Passing | Tests Failing | Notes |
 |-------|---------------|---------------|---------------|-------|
 | 1     | 95            | 95            | 0             | All schema validation, serialization, edge case tests pass |
 | 2     | 56            | 56            | 0             | LP/MIP/infeasible/unbounded/sensitivity/timeout all pass |
-| 2 ver | 3             | 3             | 0             | Cross-phase integration: LP roundtrip, infeasible IIS, JSON completeness |
+| 2 ver | 3             | 3             | 0             | Cross-stage integration: LP roundtrip, infeasible IIS, JSON completeness |
 | 3     | 94            | 94            | 0             | LP/MIP/Portfolio/Scheduling build + integration tests (weights sum, coverage, infeasible) |
 | 3 ver | 4             | 4             | 0             | Full pipeline: LP, MIP knapsack, Portfolio QP, Scheduling binary MIP (end-to-end) |
 | 4     | 68            | 68            | 0             | Excel/CSV read, write results, templates, DataFrame→model, messy data, round-trip, errors |

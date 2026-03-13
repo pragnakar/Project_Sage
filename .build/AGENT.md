@@ -16,7 +16,7 @@ Three packages in a monorepo:
 
 - **sage-solver-core/** — Pure logic. Solver wrappers, model building, file I/O, result explanation. NO deployment opinions. NO file system calls. NO print statements. Takes Python objects in, returns Python objects out.
 - **sage-solver-mcp/** — Local MCP server. Thin wrapper. Imports sage-solver-core, exposes MCP tools, bridges local filesystem. This is V1.
-- **sage-cloud/** — DO NOT BUILD YET. Placeholder structure only.
+- **sage-solver-cloud/** — DO NOT BUILD YET. Placeholder structure only.
 
 ## Tech Stack
 
@@ -110,7 +110,7 @@ mcp>=1.0
 ## What NOT To Do
 
 - Do not use PuLP — direct highspy bindings are cleaner
-- Do not build sage-cloud yet — structure only
+- Do not build sage-solver-cloud yet — structure only
 - Do not use WidthType.PERCENTAGE in Excel formatting — breaks in Google Docs
 - Do not build a web UI — the LLM IS the UI
 - Do not add authentication to V1 — it's local only

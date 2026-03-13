@@ -1,4 +1,4 @@
-"""Tests for sage_core/builder.py — Phase 3 Model Builder.
+"""Tests for sage_core/builder.py — Stage 3 Model Builder.
 
 Coverage:
 - build_from_lp: variable names/bounds/types, constraint matrix, objective,

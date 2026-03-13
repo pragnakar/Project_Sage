@@ -1,6 +1,6 @@
-"""Phase 1 + Phase 2 cross-phase integration tests.
+"""Stage 1 + Stage 2 cross-phase integration tests.
 
-Verifies that Phase 1 schemas (LPModel, LinearConstraint, …) and Phase 2
+Verifies that Stage 1 schemas (LPModel, LinearConstraint, …) and Stage 2
 solver (solve(), compute_iis()) work together without data loss, and that
 SolverResult round-trips cleanly through JSON serialization.
 """
@@ -24,14 +24,14 @@ from sage_solver_core.solver import solve
 
 
 # ---------------------------------------------------------------------------
-# Minimal Phase-3 preview: LPModel → SolverInput conversion
+# Minimal Stage-3 preview: LPModel → SolverInput conversion
 # ---------------------------------------------------------------------------
 
 
 def _lp_model_to_solver_input(model: LPModel) -> SolverInput:
-    """Convert a Phase 1 LPModel to a Phase 2 SolverInput.
+    """Convert a Stage 1 LPModel to a Stage 2 SolverInput.
 
-    This mirrors what builder.build_from_lp() will do in Phase 3.
+    This mirrors what builder.build_from_lp() will do in Stage 3.
     It exists here solely to enable cross-phase integration testing.
     """
     var_names = [v.name for v in model.variables]
@@ -75,9 +75,9 @@ def _lp_model_to_solver_input(model: LPModel) -> SolverInput:
 
 
 def test_lp_model_to_solver_roundtrip() -> None:
-    """Phase 1 LPModel → SolverInput → solve() → SolverResult round-trip.
+    """Stage 1 LPModel → SolverInput → solve() → SolverResult round-trip.
 
-    Uses the canonical LP from CLAUDE.md:
+    Uses the canonical LP from AGENT.md:
         max 3x + 2y  s.t.  x+y ≤ 10,  x ≤ 6,  y ≤ 8,  x,y ≥ 0
         Optimal: x=6, y=4, objective=26
     """
