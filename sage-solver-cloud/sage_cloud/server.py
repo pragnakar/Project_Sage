@@ -47,6 +47,7 @@ from sage_cloud.models import (
     WriteBlobRequest,
 )
 from sage_cloud.app_routes import get_app_routes
+from sage_cloud.jobs_api import router as jobs_router
 from sage_cloud.builtin_pages import register_builtin_pages
 from sage_cloud.mcp_transport import mount_sse_transport
 from sage_cloud.page_server import PageServer
@@ -161,6 +162,8 @@ app = FastAPI(
     version="0.3.0",
     lifespan=lifespan,
 )
+
+app.include_router(jobs_router)
 
 
 # ---------------------------------------------------------------------------
