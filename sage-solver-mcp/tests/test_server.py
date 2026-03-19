@@ -35,6 +35,9 @@ def _reset_state() -> None:
     _server_module._state.last_model = None
     _server_module._state.last_solver_input = None
     _server_module._state.last_iis = None
+    _server_module._state.cloud_url = None
+    _server_module._state.cloud_api_key = None
+    _server_module._state.last_task_id = None
 
 
 @pytest.fixture(autouse=True)
@@ -176,9 +179,9 @@ def portfolio_xlsx_path(tmp_path: Path) -> Path:
 
 
 class TestToolRegistration:
-    def test_eight_tools_registered(self):
+    def test_twelve_tools_registered(self):
         tools = run(_server_module.list_tools())
-        assert len(tools) == 8
+        assert len(tools) == 12
 
     def test_tool_names(self):
         tools = run(_server_module.list_tools())
@@ -192,6 +195,10 @@ class TestToolRegistration:
             "generate_template",
             "suggest_relaxations",
             "sage_status",
+            "pause_job",
+            "resume_job",
+            "get_job_progress",
+            "check_notifications",
         }
         assert names == expected
 

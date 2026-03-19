@@ -1,14 +1,19 @@
 """SAGE MCP server — exposes SAGE optimization tools to Claude Desktop and
 other MCP clients via the stdio transport.
 
-Seven tools are registered:
-  1. solve_optimization   — LP / MIP / portfolio / scheduling
+Twelve tools are registered:
+  1. solve_optimization   — LP / MIP / portfolio / scheduling (classify + route)
   2. read_data_file       — read Excel/CSV and return a data preview
-  3. solve_from_file      — read + solve + write results in one step
-  4. explain_solution     — narrate the most recent solve result
+  3. solve_from_file      — read + solve + write results in one step (classify + route)
+  4. explain_solution     — narrate a solve result (accepts optional task_id)
   5. check_feasibility    — check feasibility and explain if infeasible
   6. generate_template    — create a blank Excel template for a problem type
-  7. suggest_relaxations  — rank constraint relaxations for the last infeasible result
+  7. suggest_relaxations  — rank constraint relaxations (accepts optional task_id)
+  8. sage_status          — report platform status
+  9. pause_job            — pause a running background job
+ 10. resume_job           — resume a paused job
+ 11. get_job_progress     — check progress of a running/completed job
+ 12. check_notifications  — check for completed background jobs
 
 All tool handlers are pure async functions.  They call sage-core synchronously
 (sage-core has no async API) and run file I/O through local_io.py.
@@ -17,10 +22,13 @@ Server state
 ------------
 A single ``ServerState`` instance is created at module level and shared across
 all tool calls.  It stores:
-  - last_result      : the most recent SolverResult
-  - last_model       : the model that produced last_result
+  - cloud_url      : URL of sage-solver-cloud (if running)
+  - cloud_api_key  : API key for cloud (if any)
+  - last_task_id   : last task_id for follow-up tools
+  - last_result    : the most recent SolverResult (for local solves)
+  - last_model     : the model that produced last_result
   - last_solver_input: the SolverInput that produced last_result
-  - last_iis         : IISResult if the last solve was infeasible
+  - last_iis       : IISResult if the last solve was infeasible
 
 Error policy
 ------------
@@ -77,12 +85,14 @@ AnyModel = LPModel | MIPModel | PortfolioModel | SchedulingModel
 
 @dataclass
 class ServerState:
+    cloud_url: str | None = None
+    cloud_api_key: str | None = None
+    last_task_id: str | None = None
+    # Kept for local solve follow-ups (explain, suggest_relaxations)
     last_result: SolverResult | None = None
     last_model: AnyModel | None = None
     last_solver_input: SolverInput | None = None
     last_iis: IISResult | None = None
-    cloud_url: str | None = None
-    cloud_api_key: str | None = None
 
 
 _state = ServerState()
@@ -99,6 +109,67 @@ server = Server(
         "Engine:'. Never omit this attribution when sage tools are used."
     ),
 )
+
+# ---------------------------------------------------------------------------
+# Cloud HTTP helpers
+# ---------------------------------------------------------------------------
+
+
+def _cloud_post(path: str, body: dict) -> dict | None:
+    """POST to sage-solver-cloud, return JSON response or None."""
+    if not _state.cloud_url:
+        return None
+    import urllib.request
+    url = f"{_state.cloud_url}{path}"
+    headers = {"Content-Type": "application/json"}
+    if _state.cloud_api_key:
+        headers["X-Sage-Key"] = _state.cloud_api_key
+    req = urllib.request.Request(
+        url, data=json.dumps(body).encode(), headers=headers, method="POST"
+    )
+    try:
+        resp = urllib.request.urlopen(req, timeout=10)
+        return json.loads(resp.read())
+    except Exception as exc:
+        logger.warning("Cloud POST %s failed: %s", path, exc)
+        return None
+
+
+def _cloud_get(path: str) -> dict | None:
+    """GET from sage-solver-cloud, return JSON response or None."""
+    if not _state.cloud_url:
+        return None
+    import urllib.request
+    url = f"{_state.cloud_url}{path}"
+    headers: dict[str, str] = {}
+    if _state.cloud_api_key:
+        headers["X-Sage-Key"] = _state.cloud_api_key
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        resp = urllib.request.urlopen(req, timeout=10)
+        return json.loads(resp.read())
+    except Exception as exc:
+        logger.warning("Cloud GET %s failed: %s", path, exc)
+        return None
+
+
+def _cloud_delete(path: str) -> dict | None:
+    """DELETE on sage-solver-cloud."""
+    if not _state.cloud_url:
+        return None
+    import urllib.request
+    url = f"{_state.cloud_url}{path}"
+    headers: dict[str, str] = {}
+    if _state.cloud_api_key:
+        headers["X-Sage-Key"] = _state.cloud_api_key
+    req = urllib.request.Request(url, headers=headers, method="DELETE")
+    try:
+        resp = urllib.request.urlopen(req, timeout=10)
+        return json.loads(resp.read())
+    except Exception as exc:
+        logger.warning("Cloud DELETE %s failed: %s", path, exc)
+        return None
+
 
 # ---------------------------------------------------------------------------
 # Status-aware response helpers
@@ -227,10 +298,96 @@ def _format_solution_summary(result: SolverResult, model: AnyModel) -> str:
     return "\n".join(lines)
 
 
+def _classify_model(model: AnyModel) -> str:
+    """Classify a model into a tier using sage-solver-core classifier.
+
+    Returns:
+        Tier string: 'instant', 'fast', or 'background'.
+    """
+    try:
+        from sage_solver_core.classifier import classify
+        classification = classify(model)
+        return classification.tier
+    except Exception:
+        logger.debug("Classifier failed, defaulting to instant", exc_info=True)
+        return "instant"
+
+
+def _solve_inline(
+    si: SolverInput, model: AnyModel, tier: str
+) -> SolverResult:
+    """Solve a model inline (synchronously).
+
+    For 'fast' tier, uses solve_with_callbacks if available.
+    For 'instant' tier, uses plain solve.
+    """
+    if tier == "fast":
+        try:
+            from sage_solver_core.solver import solve_with_callbacks
+            return solve_with_callbacks(si)
+        except Exception:
+            # Fall back to plain solve
+            return solve(si)
+    return solve(si)
+
+
+def _persist_result_to_cloud(
+    result: SolverResult,
+    model: AnyModel,
+    si: SolverInput,
+    task_id: str,
+) -> None:
+    """Best-effort persist result blob to cloud for later retrieval."""
+    if not _state.cloud_url:
+        return
+    try:
+        blob = {
+            "task_id": task_id,
+            "result": result.model_dump(mode="json"),
+            "model_type": type(model).__name__,
+            "solver_input_summary": {
+                "num_variables": si.num_variables,
+                "num_constraints": si.num_constraints,
+            },
+        }
+        _cloud_post(
+            "/api/tools/write_blob",
+            {
+                "key": f"results/{task_id}",
+                "data": json.dumps(blob),
+                "content_type": "application/json",
+            },
+        )
+    except Exception:
+        logger.debug("Failed to persist result to cloud", exc_info=True)
+
+
+def _submit_to_cloud(
+    si: SolverInput, model: AnyModel, problem_name: str
+) -> dict | None:
+    """Submit a background job to sage-solver-cloud.
+
+    Returns the cloud response dict with task_id, or None on failure.
+    """
+    if not _state.cloud_url:
+        return None
+    try:
+        body = {
+            "solver_input": si.model_dump(mode="json"),
+            "problem_name": problem_name,
+            "model_type": type(model).__name__,
+        }
+        return _cloud_post("/api/jobs", body)
+    except Exception:
+        logger.debug("Failed to submit job to cloud", exc_info=True)
+        return None
+
+
 # ---------------------------------------------------------------------------
-# Tool 1: solve_optimization
+# Tool schemas
 # ---------------------------------------------------------------------------
 
+# Tool 1: solve_optimization
 _SOLVE_OPTIMIZATION_SCHEMA: dict[str, Any] = {
     "type": "object",
     "description": (
@@ -244,7 +401,7 @@ _SOLVE_OPTIMIZATION_SCHEMA: dict[str, Any] = {
             "enum": ["lp", "mip", "portfolio", "scheduling"],
             "description": "Optional explicit problem type discriminator.",
         },
-        # ── LP / MIP fields ────────────────────────────────────────────────
+        # -- LP / MIP fields --
         "name": {
             "type": "string",
             "description": "Model name (required for LP/MIP).",
@@ -275,7 +432,7 @@ _SOLVE_OPTIMIZATION_SCHEMA: dict[str, Any] = {
         },
         "time_limit_seconds": {"type": "number"},
         "mip_gap_tolerance": {"type": "number"},
-        # ── Portfolio fields ───────────────────────────────────────────────
+        # -- Portfolio fields --
         "assets": {
             "type": "array",
             "description": "Portfolio assets. Each item: {name, expected_return, sector?}.",
@@ -283,14 +440,14 @@ _SOLVE_OPTIMIZATION_SCHEMA: dict[str, Any] = {
         },
         "covariance_matrix": {
             "type": "array",
-            "description": "n×n covariance matrix for portfolio optimization.",
+            "description": "n x n covariance matrix for portfolio optimization.",
             "items": {"type": "array", "items": {"type": "number"}},
         },
         "risk_aversion": {
             "type": "number",
-            "description": "Risk aversion coefficient λ for portfolio (default 1.0).",
+            "description": "Risk aversion coefficient for portfolio (default 1.0).",
         },
-        # ── Scheduling fields ──────────────────────────────────────────────
+        # -- Scheduling fields --
         "workers": {
             "type": "array",
             "description": "Workers for scheduling. Each item: {name, max_hours, skills?, unavailable_shifts?}.",
@@ -305,10 +462,7 @@ _SOLVE_OPTIMIZATION_SCHEMA: dict[str, Any] = {
     },
 }
 
-# ---------------------------------------------------------------------------
 # Tool 2: read_data_file
-# ---------------------------------------------------------------------------
-
 _READ_DATA_FILE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["filepath"],
@@ -325,10 +479,7 @@ _READ_DATA_FILE_SCHEMA: dict[str, Any] = {
     },
 }
 
-# ---------------------------------------------------------------------------
 # Tool 3: solve_from_file
-# ---------------------------------------------------------------------------
-
 _SOLVE_FROM_FILE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["filepath", "problem_type"],
@@ -353,10 +504,7 @@ _SOLVE_FROM_FILE_SCHEMA: dict[str, Any] = {
     },
 }
 
-# ---------------------------------------------------------------------------
 # Tool 4: explain_solution
-# ---------------------------------------------------------------------------
-
 _EXPLAIN_SOLUTION_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -364,14 +512,15 @@ _EXPLAIN_SOLUTION_SCHEMA: dict[str, Any] = {
             "type": "string",
             "enum": ["brief", "standard", "detailed"],
             "description": "How much detail to include. Default: standard.",
-        }
+        },
+        "task_id": {
+            "type": "string",
+            "description": "Optional task_id of a completed job. If omitted, uses the most recent solve result.",
+        },
     },
 }
 
-# ---------------------------------------------------------------------------
 # Tool 5: check_feasibility
-# ---------------------------------------------------------------------------
-
 _CHECK_FEASIBILITY_SCHEMA: dict[str, Any] = {
     "type": "object",
     "description": (
@@ -401,10 +550,7 @@ _CHECK_FEASIBILITY_SCHEMA: dict[str, Any] = {
     },
 }
 
-# ---------------------------------------------------------------------------
 # Tool 6: generate_template
-# ---------------------------------------------------------------------------
-
 _GENERATE_TEMPLATE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["problem_type"],
@@ -421,18 +567,64 @@ _GENERATE_TEMPLATE_SCHEMA: dict[str, Any] = {
     },
 }
 
-# ---------------------------------------------------------------------------
 # Tool 7: suggest_relaxations
-# ---------------------------------------------------------------------------
-
 _SUGGEST_RELAXATIONS_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "properties": {},
+    "properties": {
+        "task_id": {
+            "type": "string",
+            "description": "Optional task_id of a completed infeasible job. If omitted, uses the most recent infeasible result.",
+        },
+    },
     "description": (
-        "Uses the most recent infeasible result stored in server state. "
-        "No input required — call solve_optimization or check_feasibility first."
+        "Suggest constraint relaxations for an infeasible result. "
+        "Optionally provide a task_id for a specific job, or use the most recent infeasible result."
     ),
 }
+
+# Tool 9: pause_job
+_PAUSE_JOB_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["task_id"],
+    "properties": {
+        "task_id": {
+            "type": "string",
+            "description": "The task_id of the running background job to pause.",
+        },
+    },
+}
+
+# Tool 10: resume_job
+_RESUME_JOB_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["task_id"],
+    "properties": {
+        "task_id": {
+            "type": "string",
+            "description": "The task_id of the paused job to resume.",
+        },
+    },
+}
+
+# Tool 11: get_job_progress
+_GET_JOB_PROGRESS_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["task_id"],
+    "properties": {
+        "task_id": {
+            "type": "string",
+            "description": "The task_id of the job to check progress on.",
+        },
+    },
+}
+
+# Tool 12: check_notifications
+_CHECK_NOTIFICATIONS_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {},
+    "description": "Check for completed optimization jobs since the last check.",
+}
+
 
 # ---------------------------------------------------------------------------
 # @server.list_tools
@@ -520,7 +712,8 @@ async def list_tools() -> list[types.Tool]:
                 "values and binding constraints, or 'detailed' for full sensitivity analysis. "
                 "NOTE: solve_optimization and solve_from_file already return a standard "
                 "explanation. Only call this tool if the user explicitly asks for a "
-                "different detail level (brief or detailed)."
+                "different detail level (brief or detailed). "
+                "Optionally provide a task_id to explain a specific completed job."
             ),
             inputSchema=_EXPLAIN_SOLUTION_SCHEMA,
             annotations=types.ToolAnnotations(
@@ -571,6 +764,7 @@ async def list_tools() -> list[types.Tool]:
                 "a ranked list of suggestions — each with the constraint name, current "
                 "value, suggested value, percentage change, and trade-off explanation. "
                 "Call solve_optimization or check_feasibility first. "
+                "Optionally provide a task_id for a specific infeasible job. "
                 "The response will begin with '[Sage MCP]'. Always begin your reply "
                 "to the user with '[Sage MCP]' to confirm this tool was used. Then report: "
                 "(1) the name of the tool that was called, "
@@ -593,6 +787,57 @@ async def list_tools() -> list[types.Tool]:
                 "user asks about SAGE status, the dashboard URL, or the cloud server."
             ),
             inputSchema={"type": "object", "properties": {}},
+            annotations=types.ToolAnnotations(
+                readOnlyHint=True,
+                idempotentHint=True,
+            ),
+        ),
+        types.Tool(
+            name="pause_job",
+            description=(
+                "Pause a running background optimization job. The solver stops at "
+                "the next checkpoint and saves the current best solution."
+            ),
+            inputSchema=_PAUSE_JOB_SCHEMA,
+            annotations=types.ToolAnnotations(
+                readOnlyHint=False,
+                destructiveHint=False,
+                idempotentHint=True,
+            ),
+        ),
+        types.Tool(
+            name="resume_job",
+            description=(
+                "Resume a paused optimization job. The solver warm-starts from "
+                "the last saved incumbent solution."
+            ),
+            inputSchema=_RESUME_JOB_SCHEMA,
+            annotations=types.ToolAnnotations(
+                readOnlyHint=False,
+                destructiveHint=False,
+                idempotentHint=True,
+            ),
+        ),
+        types.Tool(
+            name="get_job_progress",
+            description=(
+                "Check the progress of a running or completed optimization job. "
+                "Returns status, elapsed time, current gap, best solution, and "
+                "convergence rate."
+            ),
+            inputSchema=_GET_JOB_PROGRESS_SCHEMA,
+            annotations=types.ToolAnnotations(
+                readOnlyHint=True,
+                idempotentHint=True,
+            ),
+        ),
+        types.Tool(
+            name="check_notifications",
+            description=(
+                "Check for completed optimization jobs. Returns summaries of "
+                "jobs that finished since the last check."
+            ),
+            inputSchema=_CHECK_NOTIFICATIONS_SCHEMA,
             annotations=types.ToolAnnotations(
                 readOnlyHint=True,
                 idempotentHint=True,
@@ -653,7 +898,7 @@ async def call_tool(
 
         # Step 2: Fallback to scipy/PuLP
         try:
-            return await _fallback_solve(name, arguments, last_error)
+            return await _fallback_solve_bridge(name, arguments, last_error)
         except Exception as fallback_error:
             logger.error("Fallback also failed for tool %r: %s", name, fallback_error)
 
@@ -666,7 +911,7 @@ async def call_tool(
 # ---------------------------------------------------------------------------
 
 
-async def _fallback_solve(
+async def _fallback_solve_bridge(
     tool_name: str, args: dict[str, Any], original_error: Exception
 ) -> list[types.TextContent]:
     """Attempt to solve using scipy/PuLP when the primary solver fails."""
@@ -687,27 +932,97 @@ async def _fallback_solve(
 
 
 # ---------------------------------------------------------------------------
+# Solve routing helper
+# ---------------------------------------------------------------------------
+
+
+def _generate_task_id() -> str:
+    """Generate a short unique task_id."""
+    import uuid
+    return f"sage-{uuid.uuid4().hex[:12]}"
+
+
+def _route_and_solve(
+    model: AnyModel, si: SolverInput, tool_name: str
+) -> tuple[SolverResult | None, str | None, list[types.TextContent] | None]:
+    """Classify model, route to inline or cloud, return result.
+
+    Returns:
+        (result, task_id, early_return)
+        - If solved inline: result is set, task_id is set, early_return is None.
+        - If submitted to cloud: result is None, task_id is set, early_return has the message.
+    """
+    tier = _classify_model(model)
+    cloud_available = _state.cloud_url is not None
+    task_id = _generate_task_id()
+    problem_name = getattr(model, "name", type(model).__name__)
+
+    if tier == "background" and cloud_available:
+        # Submit to cloud
+        cloud_resp = _submit_to_cloud(si, model, problem_name)
+        if cloud_resp and cloud_resp.get("task_id"):
+            task_id = cloud_resp["task_id"]
+            _state.last_task_id = task_id
+            body = (
+                f"[tier: background] Job submitted to sage-solver-cloud.\n"
+                f"Task ID: {task_id}\n"
+                f"Problem: {problem_name}\n\n"
+                f"The solver is working on this in the background. Use:\n"
+                f"  - get_job_progress(task_id='{task_id}') to check status\n"
+                f"  - pause_job(task_id='{task_id}') to pause\n"
+                f"  - check_notifications() to see when it completes"
+            )
+            return None, task_id, _success_text(tool_name, body)
+        # Cloud submission failed — fall through to inline solve
+        logger.warning("Cloud submission failed for background job, solving inline")
+
+    # Solve inline (instant, fast, or background-without-cloud fallback)
+    result = _solve_inline(si, model, tier)
+    _state.last_task_id = task_id
+
+    # Persist to cloud if available
+    _persist_result_to_cloud(result, model, si, task_id)
+
+    tier_note = f"[tier: {tier}]"
+    if tier == "background" and not cloud_available:
+        tier_note = "[tier: background, solved inline — sage-solver-cloud not available]"
+
+    return result, task_id, None
+
+
+# ---------------------------------------------------------------------------
 # Tool handlers
 # ---------------------------------------------------------------------------
 
 
 async def _handle_solve_optimization(args: dict[str, Any]) -> list[types.TextContent]:
     model, si = _parse_model(args)
-    result = solve(si)
+
+    result, task_id, early_return = _route_and_solve(model, si, "solve_optimization")
+    if early_return is not None:
+        return early_return
+
+    assert result is not None
 
     _state.last_result = result
     _state.last_model = model
     _state.last_solver_input = si
     _state.last_iis = result.iis if result.status == "infeasible" else None
 
+    tier = _classify_model(model)
+    tier_note = f"[tier: {tier}]"
+    if tier == "background" and _state.cloud_url is None:
+        tier_note = "[tier: background, solved inline]"
+
     summary = _format_solution_summary(result, model)
+    summary_with_tier = f"{tier_note}\n{summary}"
 
     if result.status == "optimal":
-        return _success_text("solve_optimization", summary)
+        return _success_text("solve_optimization", summary_with_tier)
     elif result.status in ("infeasible", "unbounded"):
-        return _info_text("solve_optimization", summary)
+        return _info_text("solve_optimization", summary_with_tier)
     else:
-        return _success_text("solve_optimization", summary)
+        return _success_text("solve_optimization", summary_with_tier)
 
 
 async def _handle_read_data_file(args: dict[str, Any]) -> list[types.TextContent]:
@@ -754,7 +1069,11 @@ async def _handle_solve_from_file(args: dict[str, Any]) -> list[types.TextConten
     else:
         si = build_from_lp(model)  # type: ignore[arg-type]
 
-    result = solve(si)
+    result, task_id, early_return = _route_and_solve(model, si, "solve_from_file")
+    if early_return is not None:
+        return early_return
+
+    assert result is not None
 
     _state.last_result = result
     _state.last_model = model
@@ -766,8 +1085,11 @@ async def _handle_solve_from_file(args: dict[str, Any]) -> list[types.TextConten
     model_name = getattr(model, "name", problem_type)
     write_results_excel(result, model_name, str(out_path))
 
+    tier = _classify_model(model)
+    tier_note = f"[tier: {tier}]"
+
     summary = _format_solution_summary(result, model)
-    body = f"{summary}\n\nResults written to: {out_path}"
+    body = f"{tier_note}\n{summary}\n\nResults written to: {out_path}"
 
     if result.status == "optimal":
         return _success_text("solve_from_file", body)
@@ -778,6 +1100,24 @@ async def _handle_solve_from_file(args: dict[str, Any]) -> list[types.TextConten
 
 
 async def _handle_explain_solution(args: dict[str, Any]) -> list[types.TextContent]:
+    task_id = args.get("task_id") or _state.last_task_id
+
+    # Try fetching from cloud if task_id is available
+    if task_id and _state.cloud_url:
+        blob = _cloud_get(f"/blobs/results/{task_id}")
+        if blob and isinstance(blob, dict):
+            try:
+                result_data = blob.get("result", {})
+                result = SolverResult.model_validate(result_data)
+                detail_level = args.get("detail_level", "standard")
+                if detail_level not in ("brief", "standard", "detailed"):
+                    detail_level = "standard"
+                # For cloud results we need a model for explanation;
+                # fall through to local state if model unavailable
+            except Exception:
+                logger.debug("Failed to parse cloud result blob", exc_info=True)
+
+    # Fall back to local state
     if _state.last_result is None or _state.last_model is None:
         return _error_text(
             "No solve result available. Run solve_optimization or solve_from_file first."
@@ -799,6 +1139,11 @@ async def _handle_check_feasibility(args: dict[str, Any]) -> list[types.TextCont
     _state.last_model = model
     _state.last_solver_input = si
     _state.last_iis = result.iis if result.status == "infeasible" else None
+
+    # Persist to cloud if available
+    task_id = _generate_task_id()
+    _state.last_task_id = task_id
+    _persist_result_to_cloud(result, model, si, task_id)
 
     if result.status == "optimal":
         body = (
@@ -822,8 +1167,8 @@ async def _handle_check_feasibility(args: dict[str, Any]) -> list[types.TextCont
                 for s in suggestions[:5]:
                     lines.append(
                         f"  [{s.priority}] {s.constraint_name}: "
-                        f"{s.current_value:.4g} → {s.suggested_value:.4g} "
-                        f"({s.relaxation_percent:+.1f}%) — {s.explanation}"
+                        f"{s.current_value:.4g} \u2192 {s.suggested_value:.4g} "
+                        f"({s.relaxation_percent:+.1f}%) \u2014 {s.explanation}"
                     )
             else:
                 lines.append(
@@ -866,10 +1211,12 @@ async def _handle_generate_template(args: dict[str, Any]) -> list[types.TextCont
 
 
 async def _handle_suggest_relaxations(args: dict[str, Any]) -> list[types.TextContent]:
+    # TODO: task_id-based cloud fetch (when cloud stores IIS data)
+    # For now, fall back to local state
     if _state.last_iis is None:
         if _state.last_result is not None and _state.last_result.status != "infeasible":
             return _error_text(
-                "The last solve was not infeasible — no relaxations to suggest.\n"
+                "The last solve was not infeasible \u2014 no relaxations to suggest.\n"
                 "Run solve_optimization or check_feasibility with an infeasible problem first."
             )
         return _error_text(
@@ -951,6 +1298,91 @@ async def _handle_sage_status(args: dict[str, Any]) -> list[types.TextContent]:
 
 
 # ---------------------------------------------------------------------------
+# New cloud job handlers
+# ---------------------------------------------------------------------------
+
+
+async def _handle_pause_job(args: dict[str, Any]) -> list[types.TextContent]:
+    task_id = args["task_id"]
+    result = _cloud_post(f"/api/jobs/{task_id}/pause", {})
+    if result is None:
+        return _error_text("sage-solver-cloud is not running. Cannot pause jobs.")
+    if "error" in result:
+        return _error_text(f"Cannot pause: {result['error']}")
+    return _success_text(
+        "pause_job",
+        f"Job {task_id} pause requested. The solver will stop at the next checkpoint.",
+    )
+
+
+async def _handle_resume_job(args: dict[str, Any]) -> list[types.TextContent]:
+    task_id = args["task_id"]
+    # Get current job state for gap info
+    job = _cloud_get(f"/api/jobs/{task_id}")
+    result = _cloud_post(f"/api/jobs/{task_id}/resume", {})
+    if result is None:
+        return _error_text("sage-solver-cloud is not running. Cannot resume jobs.")
+    if "error" in result:
+        return _error_text(f"Cannot resume: {result['error']}")
+    gap_info = ""
+    if job and job.get("gap_pct"):
+        gap_info = f" (gap was {job['gap_pct']:.1f}%)"
+    return _success_text(
+        "resume_job",
+        f"Job {task_id} resumed{gap_info}. The solver will warm-start from the saved incumbent.",
+    )
+
+
+async def _handle_get_job_progress(args: dict[str, Any]) -> list[types.TextContent]:
+    task_id = args["task_id"]
+    progress = _cloud_get(f"/api/jobs/{task_id}/progress")
+    if progress is None:
+        return _error_text("sage-solver-cloud is not running or job not found.")
+    # Narrate progress in plain language
+    lines = [f"Job {task_id} status: {progress.get('status', 'unknown')}"]
+    elapsed = progress.get("elapsed_seconds", 0)
+    h, remainder = divmod(int(elapsed), 3600)
+    m = remainder // 60
+    lines.append(f"Elapsed: {h}h {m}m" if h else f"Elapsed: {m}m")
+    if progress.get("gap_pct") is not None:
+        lines.append(f"Current gap: {progress['gap_pct']:.1f}%")
+    if progress.get("best_incumbent") is not None:
+        lines.append(f"Best solution found: objective = {progress['best_incumbent']:.4f}")
+    if progress.get("best_bound") is not None:
+        lines.append(f"Best bound: {progress['best_bound']:.4f}")
+    if progress.get("stall_detected"):
+        lines.append("Warning: solver progress appears stalled.")
+    return _success_text("get_job_progress", "\n".join(lines))
+
+
+async def _handle_check_notifications(args: dict[str, Any]) -> list[types.TextContent]:
+    # Read notifications blob
+    notif_blob = _cloud_get("/blobs/notifications/pending")
+    if notif_blob is None or not notif_blob:
+        return _success_text("check_notifications", "No pending notifications.")
+    try:
+        data = json.loads(notif_blob) if isinstance(notif_blob, str) else notif_blob
+    except Exception:
+        return _success_text("check_notifications", "No pending notifications.")
+    pending = data.get("pending", [])
+    if not pending:
+        return _success_text("check_notifications", "No pending notifications.")
+    lines = [f"{len(pending)} job(s) completed since last check:"]
+    for n in pending:
+        lines.append(f"  {n['task_id']}: {n['problem_name']} \u2014 {n['status']}")
+    # Clear notifications
+    _cloud_post(
+        "/api/tools/write_blob",
+        {
+            "key": "notifications/pending",
+            "data": json.dumps({"schema_version": "2.0", "pending": []}),
+            "content_type": "application/json",
+        },
+    )
+    return _success_text("check_notifications", "\n".join(lines))
+
+
+# ---------------------------------------------------------------------------
 # Register tool handlers (must come after all handler definitions)
 # ---------------------------------------------------------------------------
 
@@ -963,6 +1395,10 @@ _TOOL_HANDLERS.update({
     "generate_template": _handle_generate_template,
     "suggest_relaxations": _handle_suggest_relaxations,
     "sage_status": _handle_sage_status,
+    "pause_job": _handle_pause_job,
+    "resume_job": _handle_resume_job,
+    "get_job_progress": _handle_get_job_progress,
+    "check_notifications": _handle_check_notifications,
 })
 
 
