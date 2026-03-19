@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "groot": {
+      "command": "/absolute/path/to/python",
+      "args": ["-m", "groot", "--mcp-stdio", "--http"]
+    }
+  }
+}

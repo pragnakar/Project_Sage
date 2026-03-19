@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Groot</title>
+
+  <!-- React 18 CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- Babel standalone for client-side JSX transform -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --border:   #30363d;
+      --accent:   #4ade80;
+      --accent2:  #6366f1;
+      --text:     #e2e8f0;
+      --muted:    #8b949e;
+      --error:    #ff6b6b;
+      --warn:     #f0a854;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 15px; }
+
+    #root { display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* Nav */
+    nav {
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0 1.5rem; height: 52px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+    }
+    nav .logo { color: var(--accent); font-weight: 700; font-size: 1.1rem; letter-spacing: .04em; text-decoration: none; }
+    nav a { color: var(--muted); text-decoration: none; font-size: .9rem; transition: color .15s; }
+    nav a:hover { color: var(--text); }
+    nav a.active { color: var(--accent); }
+    nav .page-chip {
+      padding: .2rem .7rem;
+      background: var(--border); border-radius: 999px;
+      font-size: .8rem; color: var(--muted);
+    }
+    nav .nav-right { margin-left: auto; display: flex; align-items: center; gap: 1rem; }
+    nav .nav-right a { font-size: .8rem; color: var(--muted); }
+
+    /* Main */
+    main { flex: 1; padding: 2rem 2.5rem; max-width: 1100px; width: 100%; margin: 0 auto; }
+
+    h1 { font-size: 1.6rem; font-weight: 600; margin-bottom: .75rem; }
+    h2 { font-size: 1.2rem; font-weight: 600; margin-bottom: .5rem; color: var(--muted); }
+    p  { line-height: 1.6; color: var(--muted); }
+
+    /* Cards */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;
+    }
+
+    /* Status states */
+    .loading { color: var(--muted); padding: 3rem 0; text-align: center; }
+    .error-box {
+      background: #2a1015; border: 1px solid var(--error);
+      border-radius: 8px; padding: 1.5rem; color: var(--error);
+    }
+    .error-box pre { font-size: .8rem; margin-top: .5rem; opacity: .8; white-space: pre-wrap; }
+    .btn {
+      margin-top: 1rem; padding: .4rem 1rem;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); border-radius: 6px; cursor: pointer; font-size: .85rem;
+    }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Placeholder */
+    .placeholder { opacity: .45; font-size: .9rem; margin-top: .5rem; }
+    .accent { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    // ---------------------------------------------------------------------------
+    // Path-based router (replaces hash router)
+    // ---------------------------------------------------------------------------
+    function usePathname() {
+      const [path, setPath] = React.useState(window.location.pathname);
+      React.useEffect(() => {
+        const onPop = () => setPath(window.location.pathname);
+        window.addEventListener('popstate', onPop);
+        return () => window.removeEventListener('popstate', onPop);
+      }, []);
+      return path;
+    }
+
+    function navigate(url) {
+      window.history.pushState({}, '', url);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+
+    function parseRoute(path) {
+      if (path === '/' || path === '') return { route: 'dashboard' };
+      if (path === '/artifacts' || path.startsWith('/artifacts?')) return { route: 'artifacts' };
+      // /apps/{app}/{page} — multi-page app page (two segments)
+      const appPage = path.match(/^\/apps\/([^/]+)\/([^/?#]+)\/?$/);
+      if (appPage) return { route: 'app-page', app: appPage[1], page: appPage[2] };
+      // /apps/{app}/ — app root index (trailing slash distinguishes from standalone page)
+      const appRoot = path.match(/^\/apps\/([^/]+)\/$/);
+      if (appRoot) return { route: 'app-page', app: appRoot[1], page: 'index' };
+      // /apps/{name} — standalone page (no trailing slash, single segment)
+      const standalone = path.match(/^\/apps\/([^/]+)$/);
+      if (standalone) return { route: 'page', name: standalone[1] };
+      return { route: 'not-found' };
+    }
+
+    // ---------------------------------------------------------------------------
+    // Shared JSX transform — used by DynamicPage and DynamicAppPage
+    // ---------------------------------------------------------------------------
+    function _transformJsx(rawJsx) {
+      const exportMatch = rawJsx.match(
+        /^\s*export\s+default\s+(?:function|const|class)\s+([A-Za-z_$][A-Za-z0-9_$]*)/m
+      );
+      const exportedName = exportMatch ? exportMatch[1] : null;
+
+      const jsx = rawJsx
+        .replace(/^\s*import\s+.*$/gm, '')
+        .replace(/^\s*export\s+default\s+/gm, '')
+        .replace(/^\s*export\s+/gm, '');
+
+      const _hooks = ['useState','useEffect','useRef','useCallback','useMemo',
+                      'useContext','useReducer','useLayoutEffect','useId'];
+      const _hookVals = _hooks.map(h => React[h]);
+      const _retExpr = `typeof Page !== 'undefined' ? Page : ${
+        exportedName ? `typeof ${exportedName} !== 'undefined' ? ${exportedName} :` : ''
+      } undefined`;
+
+      const code = Babel.transform(jsx, { presets: ['react'] }).code;
+      const fn = new Function('React', ..._hooks, `"use strict"; ${code}; return ${_retExpr};`);
+      return fn(React, ..._hookVals) || null;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Error boundary
+    // ---------------------------------------------------------------------------
+    class ErrorBoundary extends React.Component {
+      constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+      static getDerivedStateFromError(e) { return { hasError: true, error: e }; }
+      render() {
+        if (this.state.hasError) {
+          return (
+            <div className="error-box">
+              <strong>Page failed to render</strong>
+              <pre>{this.state.error?.message}</pre>
+              <button className="btn" onClick={() => this.setState({ hasError: false, error: null })}>
+                Retry
+              </button>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // DynamicPage — standalone pages at /apps/{name}
+    // ---------------------------------------------------------------------------
+    function DynamicPage({ name }) {
+      const [state, setState] = React.useState({ status: 'loading' });
+
+      React.useEffect(() => {
+        setState({ status: 'loading' });
+        fetch(`/api/pages/${encodeURIComponent(name)}/source`)
+          .then(res => {
+            if (!res.ok) throw Object.assign(new Error(`Page not found: ${name}`), { type: 'not-found' });
+            return res.text();
+          })
+          .then(rawJsx => {
+            try {
+              let Component = _transformJsx(rawJsx);
+              if (!Component) {
+                const _hooks = ['useState','useEffect','useRef','useCallback','useMemo',
+                                'useContext','useReducer','useLayoutEffect','useId'];
+                const _hookVals = _hooks.map(h => React[h]);
+                const wrapped = Babel.transform(`function Page(){return(${rawJsx.trim()});}`, { presets: ['react'] }).code;
+                const wrapFn = new Function('React', ..._hooks, `"use strict"; ${wrapped}; return Page;`);
+                Component = wrapFn(React, ..._hookVals);
+              }
+              setState({ status: 'ready', Component });
+            } catch (e) {
+              setState({ status: 'transform-error', message: e.message });
+            }
+          })
+          .catch(e => {
+            const status = e.type === 'not-found' ? 'not-found' : 'fetch-error';
+            setState({ status, message: e.message });
+          });
+      }, [name]);
+
+      if (state.status === 'loading') return <div className="loading">Loading <em>{name}</em>…</div>;
+      if (state.status === 'not-found') return (
+        <div className="error-box">
+          <strong>Page not found: {name}</strong>
+          <p style={{marginTop:'.5rem', color:'var(--muted)'}}>
+            No registered page with this name. Create one via the API.
+          </p>
+        </div>
+      );
+      if (state.status === 'fetch-error') return (
+        <div className="error-box"><strong>Failed to load page</strong><pre>{state.message}</pre></div>
+      );
+      if (state.status === 'transform-error') return (
+        <div className="error-box"><strong>JSX transform error</strong><pre>{state.message}</pre></div>
+      );
+
+      const { Component } = state;
+      return <ErrorBoundary><Component /></ErrorBoundary>;
+    }
+
+    // ---------------------------------------------------------------------------
+    // DynamicAppPage — multi-page apps at /apps/{app}/{page}
+    // ---------------------------------------------------------------------------
+    function DynamicAppPage({ app, page }) {
+      const [layoutState, setLayoutState] = React.useState({ status: 'loading' });
+      const [pageState, setPageState] = React.useState({ status: 'loading' });
+
+      // Fetch layout (204 = no layout, degrade gracefully)
+      React.useEffect(() => {
+        fetch(`/api/app-pages/${encodeURIComponent(app)}/layout/source`)
+          .then(res => {
+            if (res.status === 204) return null;
+            if (!res.ok) return null;
+            return res.text();
+          })
+          .then(jsx => setLayoutState({ status: 'ready', jsx: jsx || '' }))
+          .catch(() => setLayoutState({ status: 'ready', jsx: '' }));
+      }, [app]);
+
+      // Fetch page JSX
+      React.useEffect(() => {
+        setPageState({ status: 'loading' });
+        fetch(`/api/app-pages/${encodeURIComponent(app)}/${encodeURIComponent(page)}/source`)
+          .then(res => {
+            if (!res.ok) throw Object.assign(new Error(`App page not found: ${app}/${page}`), { type: 'not-found' });
+            return res.text();
+          })
+          .then(rawJsx => {
+            try {
+              const Component = _transformJsx(rawJsx);
+              if (!Component) throw new Error('No component found in JSX');
+              setPageState({ status: 'ready', Component });
+            } catch (e) {
+              setPageState({ status: 'transform-error', message: e.message });
+            }
+          })
+          .catch(e => {
+            setPageState({ status: e.type === 'not-found' ? 'not-found' : 'fetch-error', message: e.message });
+          });
+      }, [app, page]);
+
+      if (layoutState.status === 'loading' || pageState.status === 'loading')
+        return <div className="loading">Loading {app}/{page}…</div>;
+
+      if (pageState.status === 'not-found') return (
+        <div className="error-box">
+          <strong>App page not found: {app}/{page}</strong>
+          <p style={{marginTop:'.5rem', color:'var(--muted)'}}>
+            Use create_app_page to register this route.
+          </p>
+        </div>
+      );
+      if (pageState.status === 'fetch-error') return (
+        <div className="error-box"><strong>Failed to load page</strong><pre>{pageState.message}</pre></div>
+      );
+      if (pageState.status === 'transform-error') return (
+        <div className="error-box"><strong>JSX transform error</strong><pre>{pageState.message}</pre></div>
+      );
+
+      const { Component } = pageState;
+      const layoutJsx = layoutState.jsx;
+
+      if (layoutJsx) {
+        try {
+          const Layout = _transformJsx(layoutJsx);
+          if (Layout) return <ErrorBoundary><Layout><Component /></Layout></ErrorBoundary>;
+        } catch (_) { /* layout failed — render page without it */ }
+      }
+      return <ErrorBoundary><Component /></ErrorBoundary>;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Built-in pages — delegated to DynamicPage (served from artifact store)
+    // ---------------------------------------------------------------------------
+    function GrootDashboard() {
+      return <DynamicPage key="groot-dashboard" name="groot-dashboard" />;
+    }
+
+    function ArtifactBrowser() {
+      return <DynamicPage key="groot-artifacts" name="groot-artifacts" />;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Navigation
+    // ---------------------------------------------------------------------------
+    function NavLink({ href, children, className }) {
+      const handleClick = e => {
+        // Only intercept same-origin links without modifier keys
+        if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+          e.preventDefault();
+          navigate(href);
+        }
+      };
+      return <a href={href} className={className} onClick={handleClick}>{children}</a>;
+    }
+
+    function Nav({ current }) {
+      return (
+        <nav>
+          <NavLink className="logo" href="/">Groot</NavLink>
+          <NavLink href="/"         className={current.route === 'dashboard' ? 'active' : ''}>Dashboard</NavLink>
+          <NavLink href="/artifacts" className={current.route === 'artifacts' ? 'active' : ''}>Artifacts</NavLink>
+          <div className="nav-right">
+            {current.route === 'app-page' && (
+              <span className="page-chip">{current.app}/{current.page}</span>
+            )}
+            <a href="/docs" target="_blank" rel="noopener">API Docs</a>
+            <a href="/health" target="_blank" rel="noopener">Health</a>
+          </div>
+        </nav>
+      );
+    }
+
+    // ---------------------------------------------------------------------------
+    // App
+    // ---------------------------------------------------------------------------
+    function App() {
+      const path    = usePathname();
+      const current = parseRoute(path);
+
+      // Standalone pages and app pages render fullscreen — no Groot chrome
+      if (current.route === 'page') {
+        return <DynamicPage key={current.name} name={current.name} />;
+      }
+      if (current.route === 'app-page') {
+        return (
+          <DynamicAppPage key={`${current.app}/${current.page}`}
+                          app={current.app} page={current.page} />
+        );
+      }
+
+      return (
+        <div id="app">
+          <Nav current={current} />
+          <main>
+            {current.route === 'dashboard' && <GrootDashboard />}
+            {current.route === 'artifacts' && <ArtifactBrowser />}
+            {current.route === 'not-found' && (
+              <div className="error-box"><strong>Route not found</strong></div>
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
