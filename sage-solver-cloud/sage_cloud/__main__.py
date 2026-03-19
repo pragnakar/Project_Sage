@@ -56,6 +56,20 @@ async def _build_runtime():
     return store, registry
 
 
+def _get_bound_port(server) -> int:
+    """Extract the actual bound port from a uvicorn Server instance.
+
+    When port=0 is used, the OS assigns a random port. This function
+    retrieves the real port after the server has started.
+    """
+    for srv in server.servers:
+        for sock in srv.sockets:
+            addr = sock.getsockname()
+            if isinstance(addr, tuple) and len(addr) >= 2:
+                return addr[1]
+    raise RuntimeError("Could not determine bound port from uvicorn server")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Sage Cloud")
     parser.add_argument("--mcp-stdio", action="store_true", help="Start MCP stdio transport")
@@ -78,18 +92,40 @@ def main():
 
             def _run_http():
                 import uvicorn
+                from sage_cloud.discovery import (
+                    delete_discovery_file,
+                    register_cleanup,
+                    write_discovery_file,
+                )
                 # Route ALL uvicorn log output to stderr so stdout stays clean for
                 # the MCP stdio JSON protocol. By default uvicorn's access log handler
                 # writes to stdout, which corrupts the MCP message stream.
                 log_config = uvicorn.config.LOGGING_CONFIG.copy()
                 for handler in log_config.get("handlers", {}).values():
                     handler["stream"] = "ext://sys.stderr"
-                uvicorn.run(
+
+                config = uvicorn.Config(
                     "sage_cloud.server:app",
                     host=settings.SAGE_CLOUD_HOST,
                     port=port,
                     log_config=log_config,
                 )
+                server = uvicorn.Server(config)
+
+                # Use a custom startup to capture the actual port
+                original_startup = server.startup
+
+                async def _patched_startup(sockets=None):
+                    await original_startup(sockets=sockets)
+                    try:
+                        actual_port = _get_bound_port(server)
+                        write_discovery_file(actual_port)
+                        register_cleanup()
+                    except Exception as exc:
+                        logger.warning("Failed to write discovery file: %s", exc)
+
+                server.startup = _patched_startup
+                server.run()
 
             t = threading.Thread(target=_run_http, daemon=True)
             t.start()
@@ -103,17 +139,44 @@ def main():
     else:
         import uvicorn
         from sage_cloud.config import get_settings
+        from sage_cloud.discovery import (
+            delete_discovery_file,
+            register_cleanup,
+            write_discovery_file,
+        )
         settings = get_settings()
         port = args.port if args.port is not None else settings.SAGE_CLOUD_PORT
-        print(f"\n  Sage Cloud v0.3.0")
-        print(f"  API Key : {api_key}")
-        print(f"  Dashboard: http://{settings.SAGE_CLOUD_HOST if settings.SAGE_CLOUD_HOST != '0.0.0.0' else 'localhost'}:{port}/\n")
-        uvicorn.run(
+
+        config = uvicorn.Config(
             "sage_cloud.server:app",
             host=settings.SAGE_CLOUD_HOST,
             port=port,
             reload=False,
         )
+        server = uvicorn.Server(config)
+
+        # Use a custom startup to capture the actual port and write discovery file
+        original_startup = server.startup
+
+        async def _patched_startup(sockets=None):
+            await original_startup(sockets=sockets)
+            try:
+                actual_port = _get_bound_port(server)
+                write_discovery_file(actual_port)
+                register_cleanup()
+                host_display = settings.SAGE_CLOUD_HOST if settings.SAGE_CLOUD_HOST != '0.0.0.0' else 'localhost'
+                print(f"\n  Sage Cloud v0.3.0")
+                print(f"  API Key : {api_key}")
+                print(f"  Dashboard: http://{host_display}:{actual_port}/\n")
+            except Exception as exc:
+                logger.warning("Failed to write discovery file: %s", exc)
+                print(f"\n  Sage Cloud v0.3.0")
+                print(f"  API Key : {api_key}")
+                host_display = settings.SAGE_CLOUD_HOST if settings.SAGE_CLOUD_HOST != '0.0.0.0' else 'localhost'
+                print(f"  Dashboard: http://{host_display}:{port}/\n")
+
+        server.startup = _patched_startup
+        server.run()
 
 
 if __name__ == "__main__":

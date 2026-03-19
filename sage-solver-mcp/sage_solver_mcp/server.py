@@ -910,15 +910,38 @@ async def _handle_suggest_relaxations(args: dict[str, Any]) -> list[types.TextCo
 async def _handle_sage_status(args: dict[str, Any]) -> list[types.TextContent]:
     lines = ["SAGE Platform Status", ""]
 
-    if _state.cloud_url:
-        lines.append(f"sage-solver-cloud: RUNNING")
-        lines.append(f"  URL: {_state.cloud_url}")
-        lines.append(f"  Dashboard: {_state.cloud_url}/")
-        lines.append(f"  Job dashboard: {_state.cloud_url}/apps/sage-jobs")
-        lines.append(f"  Artifacts: {_state.cloud_url}/apps/sage-artifacts")
-    else:
-        lines.append("sage-solver-cloud: NOT RUNNING")
-        lines.append("  The cloud UI server is not available this session.")
+    # Re-check discovery for up-to-date status
+    try:
+        from sage_solver_mcp.cloud import find_cloud
+        cloud = find_cloud()
+        if cloud is not None:
+            _state.cloud_url = cloud.url
+            lines.append("sage-solver-cloud: RUNNING (discovered)")
+            lines.append(f"  URL: {cloud.url}")
+            lines.append(f"  Version: {cloud.version}")
+            lines.append(f"  Port: {cloud.port}")
+            lines.append(f"  Dashboard: {cloud.url}/")
+            lines.append(f"  Job dashboard: {cloud.url}/apps/sage-jobs")
+            lines.append(f"  Artifacts: {cloud.url}/apps/sage-artifacts")
+        elif _state.cloud_url:
+            lines.append("sage-solver-cloud: RUNNING (subprocess)")
+            lines.append(f"  URL: {_state.cloud_url}")
+            lines.append(f"  Dashboard: {_state.cloud_url}/")
+            lines.append(f"  Job dashboard: {_state.cloud_url}/apps/sage-jobs")
+            lines.append(f"  Artifacts: {_state.cloud_url}/apps/sage-artifacts")
+        else:
+            lines.append("sage-solver-cloud: NOT RUNNING")
+            lines.append("  The cloud UI server is not available this session.")
+    except Exception:
+        if _state.cloud_url:
+            lines.append(f"sage-solver-cloud: RUNNING")
+            lines.append(f"  URL: {_state.cloud_url}")
+            lines.append(f"  Dashboard: {_state.cloud_url}/")
+            lines.append(f"  Job dashboard: {_state.cloud_url}/apps/sage-jobs")
+            lines.append(f"  Artifacts: {_state.cloud_url}/apps/sage-artifacts")
+        else:
+            lines.append("sage-solver-cloud: NOT RUNNING")
+            lines.append("  The cloud UI server is not available this session.")
 
     lines.append("")
     lines.append("sage-solver-mcp: RUNNING (this server)")
@@ -960,8 +983,8 @@ async def _run_server() -> None:
 def main() -> None:
     """Start the SAGE MCP server using stdio transport.
 
-    Automatically starts sage-solver-cloud on a dynamic port as a subprocess.
-    The cloud server is torn down when this process exits.
+    Discovers a running sage-solver-cloud via ~/.sage/cloud.json.
+    Falls back to starting cloud as a subprocess if discovery fails.
     """
     import asyncio
 
@@ -976,21 +999,35 @@ def main() -> None:
 
     _log("[SAGE] sage-solver-mcp starting...")
 
-    # Start sage-solver-cloud subprocess
+    # Try discovery-based cloud detection first
     try:
-        from sage_solver_mcp.cloud_process import get_cloud
+        from sage_solver_mcp.cloud import find_cloud
 
-        _log("[SAGE] Launching sage-solver-cloud...")
-        cloud = get_cloud()
-        _state.cloud_url = cloud.base_url
-        _state.cloud_api_key = cloud.api_key
+        _log("[SAGE] Checking for running sage-solver-cloud...")
+        cloud = find_cloud()
+        if cloud is not None:
+            _state.cloud_url = cloud.url
+            _state.cloud_api_key = None  # Discovery doesn't provide API key
+            _log(f"[SAGE] sage-solver-cloud discovered at {cloud.url} (v{cloud.version})")
+            _log(f"[SAGE] Dashboard: {cloud.url}/")
+        else:
+            _log("[SAGE] No running sage-solver-cloud found via discovery.")
+            # Fallback: start cloud as a subprocess
+            try:
+                from sage_solver_mcp.cloud_process import get_cloud
 
-        _log(f"[SAGE] sage-solver-cloud started at {cloud.base_url}")
-        _log(f"[SAGE] Dashboard: {cloud.base_url}/")
-        _log(f"[SAGE] Job dashboard: {cloud.base_url}/apps/sage-jobs")
-        _log(f"[SAGE] API key: {cloud.api_key[:16]}...")
+                _log("[SAGE] Launching sage-solver-cloud subprocess...")
+                cloud_proc = get_cloud()
+                _state.cloud_url = cloud_proc.base_url
+                _state.cloud_api_key = cloud_proc.api_key
+
+                _log(f"[SAGE] sage-solver-cloud started at {cloud_proc.base_url}")
+                _log(f"[SAGE] Dashboard: {cloud_proc.base_url}/")
+                _log(f"[SAGE] API key: {cloud_proc.api_key[:16]}...")
+            except Exception as exc:
+                _log(f"[SAGE] sage-solver-cloud not available: {exc}")
     except Exception as exc:
-        _log(f"[SAGE] sage-solver-cloud not available: {exc}")
+        _log(f"[SAGE] sage-solver-cloud discovery failed: {exc}")
 
     _log("[SAGE] MCP server ready.")
     asyncio.run(_run_server())
