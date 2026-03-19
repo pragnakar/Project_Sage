@@ -694,6 +694,9 @@ class SolverInput(BaseModel):
     objective_quadratic: list[list[float]] | None = None
     time_limit_seconds: float | None = Field(default=60.0, gt=0)
     mip_gap_tolerance: float | None = Field(default=0.0001, ge=0.0, le=1.0)
+    initial_solution: dict[str, float] | None = Field(
+        default=None, description="Warm-start solution: variable_name → value"
+    )
 
     @model_validator(mode="after")
     def dimensions_consistent(self) -> "SolverInput":
@@ -745,6 +748,35 @@ class SolverInput(BaseModel):
                     )
 
         return self
+
+
+# ---------------------------------------------------------------------------
+# Callback data schemas
+# ---------------------------------------------------------------------------
+
+
+class IncumbentUpdate(BaseModel):
+    """Callback data when HiGHS finds a new MIP incumbent."""
+
+    elapsed_seconds: float
+    mip_gap: float
+    primal_bound: float
+    dual_bound: float
+    node_count: int
+    solution: dict[str, float] = Field(
+        ..., description="variable_name → value for the new incumbent"
+    )
+
+
+class ProgressUpdate(BaseModel):
+    """Periodic progress data from HiGHS during MIP solve."""
+
+    elapsed_seconds: float
+    mip_gap: float | None = None
+    primal_bound: float | None = None
+    dual_bound: float | None = None
+    node_count: int | None = None
+    stall_detected: bool = False
 
 
 # ---------------------------------------------------------------------------

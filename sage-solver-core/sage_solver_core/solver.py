@@ -14,11 +14,18 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 
-from sage_solver_core.models import IISResult, SolverError, SolverInput, SolverResult
+from sage_solver_core.models import (
+    IISResult,
+    IncumbentUpdate,
+    ProgressUpdate,
+    SolverError,
+    SolverInput,
+    SolverResult,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     pass
@@ -104,6 +111,169 @@ def compute_iis(solver_input: SolverInput) -> IISResult:
             suggestions=["pip install highspy"],
         )
     return _compute_iis_deletion(solver_input)
+
+
+def solve_with_callbacks(
+    solver_input: SolverInput,
+    on_incumbent: Callable[[IncumbentUpdate], None] | None = None,
+    on_progress: Callable[[ProgressUpdate], None] | None = None,
+    check_pause: Callable[[], bool] | None = None,
+) -> SolverResult:
+    """Solve a MIP with live callbacks for incumbent updates and progress.
+
+    For LP problems (no integer/binary variables), this delegates to the
+    standard ``_solve_highs`` path with no callbacks.
+
+    Args:
+        solver_input: Solver-agnostic problem definition.
+        on_incumbent: Called each time HiGHS finds a new MIP incumbent.
+        on_progress: Called periodically (~every 5 s) with progress data.
+        check_pause: If provided and returns ``True``, the solve is interrupted.
+
+    Returns:
+        Fully populated :class:`SolverResult`.
+
+    Raises:
+        SolverError: If highspy is unavailable or the solver encounters an
+            unexpected internal failure.
+    """
+    if not _HIGHS_AVAILABLE:  # pragma: no cover
+        raise SolverError(
+            "highspy is not installed.",
+            suggestions=["pip install highspy"],
+        )
+
+    # Check if this is a MIP — if pure LP, just delegate to standard path.
+    is_mip = any(vt != "continuous" for vt in solver_input.variable_types)
+    if not is_mip:
+        return _solve_highs(solver_input, extract_iis=True)
+
+    # Build the HiGHS model
+    try:
+        h = _build_highs(solver_input)
+    except Exception as exc:
+        raise SolverError(
+            f"Failed to build HiGHS model: {exc}",
+            details={"error": str(exc)},
+        ) from exc
+
+    # Warm-start with initial solution if provided
+    if solver_input.initial_solution:
+        sol_values = [
+            solver_input.initial_solution.get(name, 0.0)
+            for name in solver_input.variable_names
+        ]
+        warm_sol = highspy._core.HighsSolution()
+        warm_sol.col_value = sol_values
+        h.setSolution(warm_sol)
+
+    # Register callback
+    from highspy import cb as _cb
+
+    bound_history: list[list] = []
+    last_progress_time = [0.0]
+
+    def _callback(
+        callback_type: int,
+        message: str,
+        data_out: "_cb.HighsCallbackOutput",
+        data_in: "_cb.HighsCallbackInput",
+        user_data: object,
+    ) -> None:
+        if int(callback_type) == int(_cb.kCallbackMipSolution):
+            elapsed = data_out.running_time
+            sol_array = data_out.mip_solution
+            solution = {
+                solver_input.variable_names[i]: float(sol_array[i])
+                for i in range(solver_input.num_variables)
+            } if sol_array is not None and len(sol_array) >= solver_input.num_variables else {}
+            update = IncumbentUpdate(
+                elapsed_seconds=elapsed,
+                mip_gap=data_out.mip_gap,
+                primal_bound=data_out.mip_primal_bound,
+                dual_bound=data_out.mip_dual_bound,
+                node_count=int(data_out.mip_node_count),
+                solution=solution,
+            )
+            bound_history.append([
+                elapsed, data_out.mip_dual_bound,
+                data_out.mip_primal_bound, "incumbent",
+            ])
+            if on_incumbent:
+                on_incumbent(update)
+
+        elif int(callback_type) == int(_cb.kCallbackMipInterrupt):
+            elapsed = data_out.running_time
+            # Progress update every 5 seconds
+            if elapsed - last_progress_time[0] >= 5.0:
+                last_progress_time[0] = elapsed
+
+                stall = _detect_stall(bound_history)
+
+                update = ProgressUpdate(
+                    elapsed_seconds=elapsed,
+                    mip_gap=data_out.mip_gap,
+                    primal_bound=data_out.mip_primal_bound,
+                    dual_bound=data_out.mip_dual_bound,
+                    node_count=int(data_out.mip_node_count),
+                    stall_detected=stall,
+                )
+                bound_history.append([
+                    elapsed, data_out.mip_dual_bound,
+                    data_out.mip_primal_bound, "progress",
+                ])
+                if on_progress:
+                    on_progress(update)
+
+            # Pause check
+            if check_pause and check_pause():
+                data_in.user_interrupt = True
+
+    h.setCallback(_callback, None)
+    h.startCallback(_cb.kCallbackMipSolution)
+    h.startCallback(_cb.kCallbackMipInterrupt)
+
+    t_start = time.perf_counter()
+    try:
+        h.run()
+    except Exception as exc:
+        elapsed = time.perf_counter() - t_start
+        raise SolverError(
+            f"HiGHS solver call failed: {exc}",
+            details={"error": str(exc), "solve_time_seconds": round(elapsed, 6)},
+        ) from exc
+
+    elapsed = time.perf_counter() - t_start
+    return _extract_result(h, solver_input, elapsed, extract_iis=True)
+
+
+def _detect_stall(bound_history: list, window: int = 90) -> bool:
+    """Detect solver stall by checking gap improvement over recent history.
+
+    Args:
+        bound_history: List of ``[elapsed, dual_bound, primal_bound, label]``.
+        window: Number of recent entries to examine.
+
+    Returns:
+        ``True`` if the gap improved by less than 0.01% over the window.
+    """
+    if len(bound_history) < window:
+        return False
+    recent = bound_history[-window:]
+    first_gap = (
+        abs(recent[0][1] - recent[0][2])
+        if recent[0][1] is not None and recent[0][2] is not None
+        else None
+    )
+    last_gap = (
+        abs(recent[-1][1] - recent[-1][2])
+        if recent[-1][1] is not None and recent[-1][2] is not None
+        else None
+    )
+    if first_gap is None or last_gap is None or first_gap == 0:
+        return False
+    improvement = abs(first_gap - last_gap) / first_gap
+    return improvement < 0.0001  # < 0.01% improvement
 
 
 # ---------------------------------------------------------------------------
@@ -370,6 +540,8 @@ def _map_status(model_status: "highspy.HighsModelStatus") -> str:
         ms.kObjectiveTarget: "optimal",
         ms.kSolutionLimit: "time_limit_reached",
         ms.kIterationLimit: "time_limit_reached",
+        ms.kInterrupt: "time_limit_reached",
+        ms.kHighsInterrupt: "time_limit_reached",
     }
     result = mapping.get(model_status, "solver_error")
     if result == "solver_error":
