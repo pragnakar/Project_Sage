@@ -1,5 +1,5 @@
 # BUILD_LOG.md — Build History
-# Project: Project Groot
+# Project: Sage Cloud
 # Started: 2026-03-13
 
 ---
@@ -22,10 +22,10 @@ Evidence: [Test output, verification results, checksums, or links]
 
 2026-03-13 | phase-0 | initialized
 ---
-Context: New project. GROOT_SPEC_V0.1.md and groot_architecture.jsx already authored by claude.ai Cowork instance. ClickUp coordination file in place. Git repo initialized on main branch.
-Work:    Bootstrap protocol executed. Read BOOTSTRAP.md, LLM_NATIVE_SOFTWARE_ENGINEERING.md, Testing_Strategy.md. Created .build/ control documents: AGENT.md, SPEC.md, BUILD_LOG.md, spec/schemas/. Derived content from GROOT_SPEC_V0.1.md.
+Context: New project. SAGE_CLOUD_SPEC.md and sage_cloud_architecture.jsx already authored by claude.ai Cowork instance. ClickUp coordination file in place. Git repo initialized on main branch.
+Work:    Bootstrap protocol executed. Read BOOTSTRAP.md, LLM_NATIVE_SOFTWARE_ENGINEERING.md, Testing_Strategy.md. Created .build/ control documents: AGENT.md, SPEC.md, BUILD_LOG.md, spec/schemas/. Derived content from SAGE_CLOUD_SPEC.md.
 Result:  Project scaffold complete. Phase G1 spec drafted in SPEC.md. AGENT.md captures all constraints, stack, ClickUp protocol, and output conventions.
-Next:    Peter reviews SPEC.md Phase G1. claude.ai creates ClickUp tasks in Groot workflow. On Peter's approval (HAND OFF TO CLAUDE CODE), Claude Code begins Phase G1.
+Next:    Peter reviews SPEC.md Phase G1. claude.ai creates ClickUp tasks in Sage Cloud workflow. On Peter's approval (HAND OFF TO CLAUDE CODE), Claude Code begins Phase G1.
 Evidence: .build/ directory created with AGENT.md, SPEC.md, BUILD_LOG.md, spec/schemas/. No application code written.
 
 Meta-prompts loaded:
@@ -43,16 +43,16 @@ Meta-prompts loaded:
 
 2026-03-13 | phase-G1 | complete
 ---
-Context: Scaffold initialized. G1 tasks staged in ClickUp Groot workflow list (901113373077) by claude.ai, approved by Peter, handed off to Claude Code.
+Context: Scaffold initialized. G1 tasks staged in ClickUp Sage Cloud workflow list (901113373077) by claude.ai, approved by Peter, handed off to Claude Code.
 Work:
-  G1-1 (868hw87m7) — Project scaffold, pyproject.toml, groot/config.py, groot/models.py, all stub modules. 31 tests.
-  G1-2 (868hw87xp) — groot/artifact_store.py: ArtifactStore class, full async SQLite CRUD for blobs/pages/schemas/events. 24 tests.
-  G1-3 (868hw8841) — groot/auth.py: verify_api_key FastAPI dependency, X-Groot-Key header + ?key= query param, dev bypass, production guard. 9 tests.
-  G1-4 (868hw88dq) — groot/tools.py: ToolRegistry + 14 core tools + register_core_tools(). Tool metadata (name, description, JSON Schema params) ready for MCP in G2. 22 tests.
-  G1-5 (868hw88n2) — groot/server.py: FastAPI lifespan, all HTTP routes under /api/, generic /api/tools/call endpoint, exception handlers, integration tests. 19 tests.
+  G1-1 (868hw87m7) — Project scaffold, pyproject.toml, sage_cloud/config.py, sage_cloud/models.py, all stub modules. 31 tests.
+  G1-2 (868hw87xp) — sage_cloud/artifact_store.py: ArtifactStore class, full async SQLite CRUD for blobs/pages/schemas/events. 24 tests.
+  G1-3 (868hw8841) — sage_cloud/auth.py: verify_api_key FastAPI dependency, X-Sage-Key header + ?key= query param, dev bypass, production guard. 9 tests.
+  G1-4 (868hw88dq) — sage_cloud/tools.py: ToolRegistry + 14 core tools + register_core_tools(). Tool metadata (name, description, JSON Schema params) ready for MCP in G2. 22 tests.
+  G1-5 (868hw88n2) — sage_cloud/server.py: FastAPI lifespan, all HTTP routes under /api/, generic /api/tools/call endpoint, exception handlers, integration tests. 19 tests.
 Result:
   Branch: feature/g1-runtime-core @ SHA 79ac953
-  Repo: github.com/pragnakar/Project_Groot
+  Repo: github.com/pragnakar/Project_Sage Cloud
   Full suite: 105/105 passed — zero failures, zero warnings
   Phase gate posted: [CLAUDE-CODE] Phase G1 complete (868hw8r3f) → OPEN-HUMAN-REVIEW
 Notable fixes:
@@ -70,11 +70,11 @@ Evidence: pytest 105 passed. All 5 G1 tasks COMPLETE in ClickUp. SHA 79ac953 on 
 ---
 Context: G1 complete (105 tests). Phase gate (868hw8r3f) approved by Peter. G2 tasks staged in ClickUp by claude.ai, handed off to Claude Code on branch feature/g2-mcp-transport.
 Work:
-  G2-1 (868hw88wy) — groot/mcp_transport.py: MCPBridge class, register_tools_with_mcp(), run_stdio(). groot/__main__.py: unified entry point (python -m groot, --mcp-stdio, --http). mcp_config.example.json: Claude Desktop config. pyproject.toml: mcp[cli]>=1.26.0 added. 12 tests.
+  G2-1 (868hw88wy) — sage_cloud/mcp_transport.py: MCPBridge class, register_tools_with_mcp(), run_stdio(). sage_cloud/__main__.py: unified entry point (python -m sage_cloud, --mcp-stdio, --http). mcp_config.example.json: Claude Desktop config. pyproject.toml: mcp[cli]>=1.26.0 added. 12 tests.
   G2-2 (868hw891x) — mount_sse_transport(): GET /mcp/sse (auth via ?key= query param) + POST /mcp/messages mounted on FastAPI app. server.py lifespan calls mount_sse_transport(). __main__.py: --port flag added. README.md: full quick start. 8 tests.
 Result:
   Branch: feature/g2-mcp-transport @ SHA 87a5845 — merged to main
-  Repo: github.com/pragnakar/Project_Groot (main is now default branch; feature branches deleted)
+  Repo: github.com/pragnakar/Project_Sage Cloud (main is now default branch; feature branches deleted)
   Full suite: 125/125 passed — zero failures, zero warnings
   Phase gate posted: [CLAUDE-CODE] Phase G2 complete (868hw9111) → OPEN-HUMAN-REVIEW
 Notable decisions:
@@ -93,15 +93,15 @@ Evidence: pytest 125 passed. Both G2 tasks COMPLETE in ClickUp. SHA 87a5845 merg
 ---
 Context: G2 complete (125 tests). Phase gate (868hw9111) at OPEN-HUMAN-REVIEW. G3 tasks staged in ClickUp by claude.ai, handed off to Claude Code on branch feature/g3-page-server.
 Work:
-  G3-1 (868hw897m) — groot/page_server.py: PageServer class, _validate_name(), register_static() with upsert pattern, get_routes() returning unauthenticated APIRouter (GET /api/pages, /api/pages/{name}/source, /api/pages/{name}/meta). groot/artifact_store.py: get_page_source() added. server.py lifespan updated: register_builtin_pages, include_router(page_server.get_routes()), idempotent route replacement. 15 tests.
-  G3-2 (868hw89bx) — groot-shell/index.html: self-contained React 18 shell using CDN React/ReactDOM + Babel standalone. Hash-based router (#/ → dashboard, #/artifacts → artifact browser, #/apps/{name} → DynamicPage). DynamicPage: fetches /api/pages/{name}/source, Babel-transforms JSX, evals named Page component or wraps bare JSX, 4 error states. ErrorBoundary class component with retry. Dark theme matching groot_architecture.jsx. server.py: SPA catch-all routes (GET /, /artifacts, /apps/{path}) serving index.html via FileResponse. 8 tests.
-  G3-3 (868hw89gx) — groot/builtin_pages.py: groot-dashboard JSX (system state stats grid, registered pages list, recent events, quick links) + groot-artifacts JSX (tabs: Blobs/Schemas/Events, inline inspect). register_builtin_pages() upserts both at startup. server.py: calls register_builtin_pages(store) in lifespan. groot-shell/index.html: GrootDashboard and ArtifactBrowser components delegate to DynamicPage. tests/test_g3_integration.py: 12 integration tests covering full create→serve→update→delete cycle. 12 tests.
+  G3-1 (868hw897m) — sage_cloud/page_server.py: PageServer class, _validate_name(), register_static() with upsert pattern, get_routes() returning unauthenticated APIRouter (GET /api/pages, /api/pages/{name}/source, /api/pages/{name}/meta). sage_cloud/artifact_store.py: get_page_source() added. server.py lifespan updated: register_builtin_pages, include_router(page_server.get_routes()), idempotent route replacement. 15 tests.
+  G3-2 (868hw89bx) — sage_shell/index.html: self-contained React 18 shell using CDN React/ReactDOM + Babel standalone. Hash-based router (#/ → dashboard, #/artifacts → artifact browser, #/apps/{name} → DynamicPage). DynamicPage: fetches /api/pages/{name}/source, Babel-transforms JSX, evals named Page component or wraps bare JSX, 4 error states. ErrorBoundary class component with retry. Dark theme matching sage_cloud_architecture.jsx. server.py: SPA catch-all routes (GET /, /artifacts, /apps/{path}) serving index.html via FileResponse. 8 tests.
+  G3-3 (868hw89gx) — sage_cloud/builtin_pages.py: sage-dashboard JSX (system state stats grid, registered pages list, recent events, quick links) + sage-artifacts JSX (tabs: Blobs/Schemas/Events, inline inspect). register_builtin_pages() upserts both at startup. server.py: calls register_builtin_pages(store) in lifespan. sage_shell/index.html: SageDashboard and ArtifactBrowser components delegate to DynamicPage. tests/test_g3_integration.py: 12 integration tests covering full create→serve→update→delete cycle. 12 tests.
 Result:
   Branch: feature/g3-page-server @ SHA d1ed76c — merged to main
-  Tag: groot-v0.1.0 created on main
-  Repo: github.com/pragnakar/Project_Groot
+  Tag: sage-cloud-v0.1.0 created on main
+  Repo: github.com/pragnakar/Project_Sage Cloud
   Full suite: 160/160 passed — zero failures, zero warnings
-  Groot runtime is functionally complete: HTTP API + MCP stdio + MCP SSE + page server + React shell
+  Sage Cloud runtime is functionally complete: HTTP API + MCP stdio + MCP SSE + page server + React shell
 Notable decisions:
   - PageServer routes are unauthenticated (GET only, read-only) — shell fetches JSX without a key
   - Built-in pages stored as Python multiline strings in builtin_pages.py, upserted on every lifespan start (handles server restarts cleanly)
@@ -110,29 +110,29 @@ Notable decisions:
   - DynamicPage supports both named Page components and bare JSX fragments
   - Built-in pages fetch /api/system/state (auth-gated): works in dev bypass mode, gracefully handles 401 in production
 Next: Peter reviews G3 output. On approval → G-APP (generalized app module interface).
-Evidence: pytest 160 passed. All G3 tasks COMPLETE in ClickUp. SHA d1ed76c merged to main. Tag groot-v0.1.0 pushed to remote.
+Evidence: pytest 160 passed. All G3 tasks COMPLETE in ClickUp. SHA d1ed76c merged to main. Tag sage-cloud-v0.1.0 pushed to remote.
 
 ---
 
 2026-03-13 | phase-G-APP | complete
 ---
-Context: G3 complete (160 tests, groot-v0.1.0 tagged). G-APP task (868hw9808) staged in ClickUp by claude.ai and handed off to Claude Code on branch feature/g-app-interface.
+Context: G3 complete (160 tests, sage-cloud-v0.1.0 tagged). G-APP task (868hw9808) staged in ClickUp by claude.ai and handed off to Claude Code on branch feature/g-app-interface.
 Work:
   G-APP (868hw9808) — Generalized app module interface, discovery API, example scaffold, and developer guide.
-    groot/app_interface.py: GrootAppModule Protocol (documentation-first, runtime_checkable, not enforced).
-    groot/app_routes.py: unauthenticated GET /api/apps (AppsResponse with core info), GET /api/apps/{name} (AppDetail with tools + pages), GET /api/apps/{name}/health (delegates to module.health_check()).
-    groot/models.py: AppInfo, AppDetail, AppHealth, CoreInfo, AppsResponse, ToolInfo models added.
-    groot/server.py: lifespan now tracks loaded_apps dict (module, meta, status); register() calls are awaited; app_routes mounted idempotently alongside page_server routes; app.state.loaded_apps persisted.
-    groot_apps/_example/: complete reference implementation — echo_tool, EchoResult, hello.jsx static page, APP_META, health_check(). Directory uses _ prefix (Python scaffold convention).
+    sage_cloud/app_interface.py: SageCloudAppModule Protocol (documentation-first, runtime_checkable, not enforced).
+    sage_cloud/app_routes.py: unauthenticated GET /api/apps (AppsResponse with core info), GET /api/apps/{name} (AppDetail with tools + pages), GET /api/apps/{name}/health (delegates to module.health_check()).
+    sage_cloud/models.py: AppInfo, AppDetail, AppHealth, CoreInfo, AppsResponse, ToolInfo models added.
+    sage_cloud/server.py: lifespan now tracks loaded_apps dict (module, meta, status); register() calls are awaited; app_routes mounted idempotently alongside page_server routes; app.state.loaded_apps persisted.
+    "sage_cloud_apps/_example/: complete reference implementation — echo_tool, EchoResult, hello.jsx static page, APP_META, health_check(). Directory uses _ prefix (Python scaffold convention).
     docs/APP_MODULE_GUIDE.md: self-sufficient developer guide covering contract, tool/page patterns, testing, API reference, FAQ.
-    groot/page_server.py: _NAME_RE updated to allow underscores (required for _example-hello page names).
-    groot/config.py: GROOT_APPS default updated from 'sage' to '_example'.
+    sage_cloud/page_server.py: _NAME_RE updated to allow underscores (required for _example-hello page names).
+    sage_cloud/config.py: SAGE_CLOUD_APPS default updated from 'sage' to '_example'.
     tests/test_app_interface.py: 12 tests — list/detail/health endpoints, namespace isolation, tool callability, graceful degradation for missing modules.
 Result:
   Branch: feature/g-app-interface @ SHA a9a5f0a — merged to main @ SHA 22986a5
-  Repo: github.com/pragnakar/Project_Groot
+  Repo: github.com/pragnakar/Project_Sage Cloud
   Full suite: 172/172 passed — zero failures, zero warnings
-  Groot is now forkable: any developer or AI can copy _example/, implement register(), and integrate in <30 minutes
+  Sage Cloud is now forkable: any developer or AI can copy _example/, implement register(), and integrate in <30 minutes
 Notable decisions:
   - Protocol is documentation-only (runtime_checkable but not enforced) — avoids forcing isinstance checks or import overhead on app authors
   - App pages filtered by prefix convention: pages named {app_name}-* belong to that app
@@ -140,14 +140,14 @@ Notable decisions:
   - ModuleNotFoundError on load = silently skipped (app absent from list); other exceptions = recorded as status:'error'
   - _example directory convention signals "reference scaffold" to developers without polluting the namespace
   - G4 (Sage) deferred to Project Sage repo — will integrate via APP_GUIDE contract as an external module
-Next: Project Sage follows APP_MODULE_GUIDE.md contract to integrate as a Groot app module. Groot runtime is complete.
+Next: Project Sage follows APP_MODULE_GUIDE.md contract to integrate as a Sage Cloud app module. Sage Cloud runtime is complete.
 Evidence: pytest 172 passed. Task 868hw9808 COMPLETE in ClickUp. SHA 22986a5 on main (remote).
 
 ---
 
 2026-03-13 | post-G-APP | shell-hotfixes — end-to-end MCP verification
 ---
-Context: Groot connected to Claude Desktop via MCP stdio. Live testing revealed three shell rendering issues with LLM-generated JSX.
+Context: Sage Cloud connected to Claude Desktop via MCP stdio. Live testing revealed three shell rendering issues with LLM-generated JSX.
 Work:
   Fix 1 (e99d693) — Strip import/export statements before Babel transform.
     LLM-generated pages include `import React from 'react'` and `export default` which are invalid in the browser eval context. Stripped via regex before transform.
@@ -168,20 +168,20 @@ Notable:
 
 2026-03-13 | task-868hwpqxk | DELETE /api/apps/{name} — complete
 ---
-Context: Groot runtime complete (172 tests). Delete App task staged in ClickUp and handed off to Claude Code on branch feature/delete-app.
+Context: Sage Cloud runtime complete (172 tests). Delete App task staged in ClickUp and handed off to Claude Code on branch feature/delete-app.
 Work:
   868hwpqxk — Authenticated DELETE /api/apps/{name} with purge_data and force flags.
-    groot/tools.py: ToolRegistry.unregister_namespace(namespace) -> int
-    groot/artifact_store.py: delete_schema(name) -> bool implemented
-    groot/models.py: AppDeleteResult(name, tools_removed, pages_removed, blobs_removed, schemas_removed, directory_removed)
-    groot/app_routes.py: DELETE /api/apps/{name} — 404 if unknown, 409 if loaded without force=true, unregisters tools, deletes pages, purges blobs/schemas on purge_data=true, removes directory on force=true
+    sage_cloud/tools.py: ToolRegistry.unregister_namespace(namespace) -> int
+    sage_cloud/artifact_store.py: delete_schema(name) -> bool implemented
+    sage_cloud/models.py: AppDeleteResult(name, tools_removed, pages_removed, blobs_removed, schemas_removed, directory_removed)
+    sage_cloud/app_routes.py: DELETE /api/apps/{name} — 404 if unknown, 409 if loaded without force=true, unregisters tools, deletes pages, purges blobs/schemas on purge_data=true, removes directory on force=true
     tests/test_delete_app.py: 12 tests — auth guard, 404, 409 protection, error-state delete, force delete, page/tool removal, purge_data blobs, purge_data schemas
 Result:
   Branch: feature/delete-app @ SHA fed4ea9 — pushed to remote
   Full suite: 184/184 passed — zero failures, zero warnings
   Task 868hwpqxk COMPLETE in ClickUp.
 Notable:
-  - force=true tests patch shutil.rmtree to prevent deletion of real groot_apps/_example/ during test runs
+  - force=true tests patch shutil.rmtree to prevent deletion of real "sage_cloud_apps/_example/ during test runs
   - delete_schema was absent from ArtifactStore — added to support purge_data=true schema cleanup
   - Error-state apps can be deleted without force=true; only status="loaded" apps require it
 Next: Merge feature/delete-app → main.
@@ -194,7 +194,7 @@ Evidence: pytest 184 passed. SHA fed4ea9 on remote branch feature/delete-app.
 Context: Delete App merged to main (184 tests). Export App task handed off to Claude Code on branch feature/export-app.
 Work:
   868hwpquk — GET /api/apps/{name}/export endpoint.
-    groot/app_routes.py: export_app() — builds ZIP in memory via zipfile.ZipFile + io.BytesIO, packages groot_apps/{name}/ (no __pycache__), writes _export_meta.json; ?include_data=true adds _export_pages.json and _export_blobs.json
+    sage_cloud/app_routes.py: export_app() — builds ZIP in memory via zipfile.ZipFile + io.BytesIO, packages "sage_cloud_apps/{name}/ (no __pycache__), writes _export_meta.json; ?include_data=true adds _export_pages.json and _export_blobs.json
     Returns StreamingResponse(application/zip) with Content-Disposition: attachment; filename={name}.zip
     tests/test_export_app.py: 13 tests — 404, content-type, attachment header, valid ZIP, loader.py present, __init__.py present, __pycache__ excluded, metadata JSON, include_data pages/blobs, roundtrip source match
 Result:
@@ -213,9 +213,9 @@ Notable:
 Context: Export App merged to main (197 tests). Import App task at HAND OFF TO CLAUDE CODE. Branch feature/import-app off main.
 Work:
   868hwpqf3 — POST /api/apps/import: multipart ZIP upload, validate, extract, hot-load.
-    groot/models.py: AppImportResult(name, status, tools_registered, pages_registered, message)
-    groot/app_routes.py: import_app() — 10 MB limit, ZIP validation, single top-level dir detection, Python identifier check, path traversal rejection, __init__.py required, extract to groot_apps/{name}/, importlib hot-load (reload if re-importing), returns AppImportResult
-    groot/server.py: added /api/apps/import to _dynamic_paths for idempotent lifespan mounting
+    sage_cloud/models.py: AppImportResult(name, status, tools_registered, pages_registered, message)
+    sage_cloud/app_routes.py: import_app() — 10 MB limit, ZIP validation, single top-level dir detection, Python identifier check, path traversal rejection, __init__.py required, extract to "sage_cloud_apps/{name}/, importlib hot-load (reload if re-importing), returns AppImportResult
+    sage_cloud/server.py: added /api/apps/import to _dynamic_paths for idempotent lifespan mounting
     tests/test_import_app.py: 14 tests — auth, 7 validation cases (non-zip, missing init, bare files, multiple dirs, invalid name, path traversal, oversized), happy path (mocked loader), disk extraction, 422 loader missing
 Result:
   Branch: feature/import-app — merged to main via PR #2
@@ -232,23 +232,23 @@ Notable:
 ---
 Context: v0.2.0 shipped Delete/Export/Import App. Two rounds of Claude AI review produced a prioritized recommendation list; all items implemented and merged to main.
 
-Work — Round 1 (groot-ui-recommendations.md):
-  groot/builtin_pages.py (_DASHBOARD_JSX):
+Work — Round 1 (sage-cloud-ui-recommendations.md):
+  sage_cloud/builtin_pages.py (_DASHBOARD_JSX):
     - Replaced native <select> Actions with custom Dropdown component (stable ref, defined before Page())
     - API key validation: debounced fetch to /api/system/state, color dot indicator (green/red/gray)
     - Import ZIP: spinner state, success/error toast via showToast(), inline importMsg banner
     - Search/filter input on Registered Pages (debounced, filters name + description)
-    - System/example page badges (groot- prefix = system tag, _ prefix = example tag)
+    - System/example page badges (sage- prefix = system tag, _ prefix = example tag)
     - Delete action hidden for system pages
     - Description truncation (overflow ellipsis + title tooltip, italic placeholder for missing)
     - Quick Links section removed entirely
     CSS: @keyframes spin for Import ZIP spinner
-  groot/builtin_pages.py (_ARTIFACTS_JSX):
+  sage_cloud/builtin_pages.py (_ARTIFACTS_JSX):
     - Pages tab added as first tab (was missing entirely)
     - Initial fetch extended to Promise.all([/api/system/artifacts, /api/pages])
 
 Work — Round 2 (Claude AI review feedback):
-  groot/builtin_pages.py:
+  sage_cloud/builtin_pages.py:
     - fmtUptime(s): converts raw uptime_seconds to "Xm Ys" / "Xh Ym" human-readable format
     - openSource(name): fetches JSX source, renders in-app modal with <pre> viewer (both dashboard + artifact browser) — replaces window.open new-tab
     - showToast() added to doDelete + doDeletePage success and error paths
@@ -256,10 +256,10 @@ Work — Round 2 (Claude AI review feedback):
     - navArtifacts(tab) helper sets window.location.hash
     - Artifact Browser: compact/table view toggle for pages tab
     - Artifact Browser: reads initial tab from window.location.hash on mount (?tab=X)
-  groot-shell/index.html:
+  sage_shell/index.html:
     - parseRoute(): handles /artifacts?tab=X (startsWith check)
     - Nav: "API Docs" (/docs) and "Health" (/health) links added right-aligned via .nav-right CSS class
-  groot/app_routes.py + groot/__init__.py + groot/__main__.py + groot/server.py + pyproject.toml:
+  sage_cloud/app_routes.py + sage_cloud/__init__.py + sage_cloud/__main__.py + sage_cloud/server.py + pyproject.toml:
     - Version bumped 0.2.0 → 0.3.0 across all files
 
 Result:
@@ -278,43 +278,43 @@ Notable:
 Context: v0.3.0 shipped (SHA c8a86e8, 243 tests). Series of bug fixes and the multi-page JSON bundle feature added in a follow-up session.
 
 Fixes:
-  groot/__main__.py:
+  sage_cloud/__main__.py:
     - --mcp-stdio --http: all uvicorn log handlers redirected to stderr to prevent
       INFO: lines from polluting the MCP stdio JSON stream (SyntaxError in Claude Desktop)
-    - _generate_api_key(): respects pre-set GROOT_API_KEYS env var instead of always overwriting
-  groot/server.py:
+    - _generate_api_key(): respects pre-set SAGE_CLOUD_API_KEYS env var instead of always overwriting
+  sage_cloud/server.py:
     - GET /api/config (no auth): returns api_key, base_url, dashboard_url for browser discovery
-  groot/builtin_pages.py:
+  sage_cloud/builtin_pages.py:
     - Dashboard always fetches /api/config on load and overwrites sessionStorage — fixes stale
       key causing "Delete failed: invalid api key" after restart
-  groot/artifact_store.py:
+  sage_cloud/artifact_store.py:
     - _page_url(): returns full absolute URL (http://localhost:8000/apps/name) so Claude
-      no longer uses <groot-port> placeholders in responses
+      no longer uses <sage-cloud-port> placeholders in responses
   claude_desktop_config.json:
     - Changed args from [--mcp-stdio] to [--mcp-stdio, --http]
-    - Added GROOT_API_KEYS, GROOT_HOST, GROOT_PORT to env for stable configuration
-  groot/tools.py:
-    - get_groot_config(): 15th core tool — returns api_key, host, port, base_url, dashboard_url
+    - Added SAGE_CLOUD_API_KEYS, SAGE_CLOUD_HOST, SAGE_CLOUD_PORT to env for stable configuration
+  sage_cloud/tools.py:
+    - get_sage_cloud_config(): 15th core tool — returns api_key, host, port, base_url, dashboard_url
       so Claude can discover connection details via MCP without manual copy-paste
 
 Multi-page App Feature:
-  groot/models.py:
+  sage_cloud/models.py:
     - AppResult, AppPageResult, AppPageMeta response models
     - CreateAppRequest, CreateAppPageRequest, UpdateAppPageRequest, ListAppPagesRequest
-  groot/artifact_store.py:
+  sage_cloud/artifact_store.py:
     - New DB tables: apps, app_pages (composite PK, ON DELETE CASCADE)
     - Helpers: _app_base_url(), _app_page_url() (index → trailing slash)
     - Methods: create_app, get_app_layout, create_app_page, update_app_page,
       get_app_page_source, list_app_pages
-  groot/tools.py:
+  sage_cloud/tools.py:
     - create_app, create_app_page, update_app_page, list_app_pages (tools 16-19)
-  groot/page_server.py:
+  sage_cloud/page_server.py:
     - GET /api/app-pages/{app}/layout/source (204 if no layout; registered before wildcard)
     - GET /api/app-pages/{app}/{page}/source (no auth — browser fetches JSX at runtime)
-  groot/server.py:
+  sage_cloud/server.py:
     - POST /api/tools/create_app, create_app_page, update_app_page, list_app_pages (auth required)
     - New paths added to _dynamic_paths
-  groot-shell/index.html:
+  sage_shell/index.html:
     - Hash router replaced with path-based router (usePathname, navigate, popstate)
     - parseRoute() distinguishes: /apps/{name} → standalone, /apps/{name}/ → app index,
       /apps/{name}/{page} → app sub-page
@@ -329,7 +329,7 @@ Multi-page App Feature:
 Result:
   Branch: main @ SHA c8a86e8
   Full suite: 243/243 passed — zero failures, zero warnings
-  Groot package reinstalled at v0.3.0
+  Sage Cloud package reinstalled at v0.3.0
 Notable:
   - /apps/{name} (no trailing slash) = standalone page; /apps/{name}/ = multi-page app root
   - Layout JSX receives children prop: function Layout({children}){return <div>{children}</div>;}
@@ -344,29 +344,29 @@ Context: v0.3.0-session-2 complete (SHA 7f638fa, 243 tests). Full session of new
 
 Work:
 
-  groot/artifact_store.py:
+  sage_cloud/artifact_store.py:
     - Schema migrations (idempotent try/except ALTER TABLE): last_opened_at TEXT on pages + apps tables
     - touch_page(name) / touch_app(name): UPDATE last_opened_at = now, return rowcount > 0
     - list_apps(): added updated_at + last_opened_at to SELECT; page_count index shifted [3] → [5]
     - update_page / get_page / list_pages / upsert_page: pass last_opened_at through to models
 
-  groot/models.py:
+  sage_cloud/models.py:
     - PageResult + PageMeta: added last_opened_at: str | None = None
 
-  groot/server.py:
+  sage_cloud/server.py:
     - GET /apps/{path:path}: records access time — module apps → loaded_apps dict (in-memory),
       multi-page apps → store.touch_app(), standalone pages → touch_page() with touch_app() fallback
     - GET /api/web-apps: unified endpoint returning all three kinds (standalone pages, module apps,
       app_bundles) each with created_at, updated_at, last_opened_at; module app timestamps derived
       from min/max of associated {name}-* pages
 
-  groot/page_server.py:
+  sage_cloud/page_server.py:
     - GET /api/pages/{name}/export: new manifest-based ZIP format — manifest.json at root,
       pages/{name}.jsx, optional blobs/ directory when ?include_data=true
-    - Manifest schema: {groot_version, exported_at, name, description, kind:"page", pages[], blobs[]}
+    - Manifest schema: {sage_cloud_version, exported_at, name, description, kind:"page", pages[], blobs[]}
     - GET /api/pages/{name}/store + PUT /api/pages/{name}/store: blob namespace endpoints for pages
 
-  groot/app_routes.py:
+  sage_cloud/app_routes.py:
     - export_app(): replaced _export_meta.json/_export_pages.json/_export_blobs.json with
       manifest.json (kind:"module_app") + blobs/ directory
     - import_app(): refactored into 4-path router:
@@ -378,7 +378,7 @@ Work:
         PATH D — no manifest, no bare files → legacy module app (unchanged)
       Blob restore executes after hot-load for PATH A module_app + PATH D
 
-  groot/builtin_pages.py:
+  sage_cloud/builtin_pages.py:
     - fmtDate(iso): "18 Mar" absolute short format for creation dates
     - fmtRelative(iso): "4d ago" relative format for modified/opened dates
     - Three-column timestamp layout in Available Web Apps: Created / Modified / Opened
@@ -413,13 +413,13 @@ Context: v0.3.0-session-2 complete (SHA 7f638fa, 266 tests after this session). 
 
 Work:
   Dual Export (manifest-based ZIP):
-    groot/page_server.py:
+    sage_cloud/page_server.py:
       - page_export route updated: new ?include_data=true param, ZIP structure changed to
         manifest.json + pages/{name}.jsx + optional blobs/ directory
-      - manifest.json: {groot_version, exported_at, name, description, kind:"page", pages[], blobs[]}
+      - manifest.json: {sage_cloud_version, exported_at, name, description, kind:"page", pages[], blobs[]}
       - Removed duplicate import json as _json; added datetime import
       - Added GET/PUT /api/pages/{name}/store endpoints (blob store proxy for page-scoped data)
-    groot/app_routes.py:
+    sage_cloud/app_routes.py:
       - export_app: replaced _export_meta.json/_export_pages.json/_export_blobs.json with
         manifest.json at ZIP root (kind:"module_app") + blobs/ directory
       - import_app: complete refactor into 4 routing paths:
@@ -430,28 +430,28 @@ Work:
       - Blob restoration after hot-load for PATH A module_app
 
   last_opened_at tracking:
-    groot/artifact_store.py:
+    sage_cloud/artifact_store.py:
       - Schema migrations: ALTER TABLE pages/apps ADD COLUMN last_opened_at TEXT (idempotent try/except)
       - Updated update_page, get_page, list_pages, upsert_page to carry last_opened_at field
       - Added touch_page(name) → bool: UPDATE pages SET last_opened_at = now WHERE name = ?
       - Updated list_apps(): added updated_at and last_opened_at to SELECT; page_count index shifted
       - Added touch_app(name) → bool: same pattern for apps table
-    groot/models.py:
+    sage_cloud/models.py:
       - last_opened_at: str | None = None added to PageResult and PageMeta
-    groot/server.py:
+    sage_cloud/server.py:
       - GET /apps/{path:path}: records access time on every browser visit
           Module apps → in-memory loaded_apps[name]["last_opened_at"]
           Multi-page apps (/apps/name/...) → store.touch_app(primary)
           Standalone pages → store.touch_page(primary) with touch_app fallback
 
   Unified /api/web-apps endpoint:
-    groot/server.py:
+    sage_cloud/server.py:
       - GET /api/web-apps: returns three kinds (page, app_bundle, multi_page_bundle) normalized
       - All three kinds return created_at, updated_at, last_opened_at
       - Module apps derive created_at/updated_at from min/max of {name}-* pages in pages table
 
   Dashboard timestamp columns:
-    groot/builtin_pages.py:
+    sage_cloud/builtin_pages.py:
       - fmtDate(iso): absolute short format → "18 Mar"
       - fmtRelative(iso): relative format → "4d ago"
       - Column header row: Created / Modified / Opened with tooltip on each
@@ -485,6 +485,6 @@ Notable:
   - \s in JS regex inside Python string → SyntaxWarning; fixed with \x20\t literal characters
   - Module app last_opened_at is session-local (in-memory dict); resets on server restart — intentional
   - list_apps() column index shift (updated_at, last_opened_at added → page_count moved [3]→[5])
-Next: Commit session-3 work. Address Artifact Browser bug (groot-artifacts fetches /api/system/artifacts
+Next: Commit session-3 work. Address Artifact Browser bug (sage-artifacts fetches /api/system/artifacts
       without auth header → all tabs except Pages show empty).
 Evidence: pytest 266 passed (local).

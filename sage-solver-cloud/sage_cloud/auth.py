@@ -1,11 +1,11 @@
-"""Groot API key authentication middleware."""
+"""Sage Cloud API key authentication middleware."""
 
 import logging
 
 from fastapi import Depends, HTTPException, Query, Request
 
-from groot.config import Settings, get_settings
-from groot.models import ToolError
+from sage_cloud.config import Settings, get_settings
+from sage_cloud.models import ToolError
 
 logger = logging.getLogger(__name__)
 
@@ -28,40 +28,40 @@ async def verify_api_key(
     """
     FastAPI dependency that validates the API key.
 
-    Checks X-Groot-Key header first, then ?key= query param.
+    Checks X-Sage-Key header first, then ?key= query param.
     Returns AuthContext on success.
     Raises 401 if no key provided, 403 if key is invalid.
 
-    Development bypass: if GROOT_ENV=development and GROOT_API_KEYS is empty,
+    Development bypass: if SAGE_CLOUD_ENV=development and SAGE_CLOUD_API_KEYS is empty,
     all requests are allowed without a key.
     """
     valid_keys = set(settings.api_keys_list())
 
     # Development bypass
-    if settings.GROOT_ENV == "development" and not valid_keys:
-        logger.warning("GROOT: no API keys configured — development bypass active, all requests allowed")
+    if settings.SAGE_CLOUD_ENV == "development" and not valid_keys:
+        logger.warning("SAGE_CLOUD: no API keys configured — development bypass active, all requests allowed")
         return AuthContext(key="dev-bypass")
 
     # Production guard
-    if settings.GROOT_ENV == "production" and not valid_keys:
+    if settings.SAGE_CLOUD_ENV == "production" and not valid_keys:
         raise HTTPException(
             status_code=500,
             detail=ToolError(
                 error="misconfigured",
-                detail="GROOT_API_KEYS must be set in production",
+                detail="SAGE_CLOUD_API_KEYS must be set in production",
                 tool_name="auth",
             ).model_dump(),
         )
 
     # Resolve key: header takes precedence over query param
-    provided_key = request.headers.get("X-Groot-Key") or key
+    provided_key = request.headers.get("X-Sage-Key") or key
 
     if not provided_key:
         raise HTTPException(
             status_code=401,
             detail=ToolError(
                 error="unauthorized",
-                detail="API key required. Provide X-Groot-Key header or ?key= query param.",
+                detail="API key required. Provide X-Sage-Key header or ?key= query param.",
                 tool_name="auth",
             ).model_dump(),
         )

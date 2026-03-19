@@ -39,6 +39,7 @@
 | 11      | 2026-03-05 | Stage 7 verification | Session 11 | — | Ship-readiness check: found and fixed 4 blockers (example column/sheet names, pyproject.toml [project.urls] TOML bug); 459/459 tests; pip install works; re-tagged v0.1.0 |
 | 12      | 2026-03-07 | Post-ship: MCP transport fix | Session 12 | — | v0.1.2/0.1.3 — MCP string deserialization fix (variables/constraints/objective as JSON strings), field aliases (lb/ub/expression/direction), explicit tool schemas; +11 core tests, +24 MCP tests; 470/470 total |
 | 13      | 2026-03-07 | Post-ship: docs & repo cleanup | Session 13 | — | README redraft (5 usage examples, uvx Quick Start), ROADMAP.md created, .build/ directory (AGENT.md, SAGE_SPEC.md, BUILD_LOG.md), template xlsx moved to examples/, 470/470 tests |
+| 14      | 2026-03-13 | Phase 2: sage-solver-cloud | Session 14 | — | Forked Project Groot via git subtree; full groot→sage-cloud rename (642 occurrences, 50 files); job blob schemas (SageJob, SageJobIndex, SageNotifications); Sage landing page + job dashboard; SAGE attribution in explainer; MCP status headers + retry/fallback chain; sage-solver-cloud auto-starts as subprocess from sage-solver-mcp; reinstall.sh dual-install (dev venv + anaconda runtime); Claude Desktop config updated; 591 total tests (393 core + 91 MCP + 260 cloud + 20 schemas + 14 fallback) |
 
 Update this table at the start and end of each session.
 
@@ -46,10 +47,10 @@ Update this table at the start and end of each session.
 
 ## Current Status
 
-**Active Phase:** COMPLETE — v0.1.3 VERIFIED AND SHIPPED
-**Active Branch:** main (tagged v0.1.3)
-**Last Completed Task:** Post-ship cleanup — MCP transport string deserialization fix, README/docs rewrite, .build/ repo reorganisation; 470/470 tests
-**Next Task:** Phase 2 (sage-solver-cloud FastAPI — async remote solves)
+**Active Phase:** Phase 2 — sage-solver-cloud integration
+**Active Branch:** main
+**Last Completed Task:** Session 14 — sage-solver-cloud (Groot fork) fully transformed, wired to sage-solver-mcp, landing page + job dashboard built, 484→591 total tests
+**Next Task:** Integration testing (Claude Desktop end-to-end), job blob write-back from sage-solver-mcp
 **Blockers:** None
 
 ---
@@ -264,4 +265,7 @@ Update after each stage.
 | 6     | 53            | 53            | 0             | MCP server: 7 tool registration, all tool handlers, state sequences, 8 error cases, conversation simulations |
 | 7     | 24            | 24            | 0             | test_examples.py — smoke tests on all 4 example files end-to-end (MCP layer) |
 | Post  | 35            | 35            | 0             | test_string_deserialization.py (11 core) + test_examples.py expansion (24 MCP) |
-| **Total** | **470**   | **470**       | **0**         | 393 sage-solver-core + 77 sage-solver-mcp |
+| 8 (Phase 2) | 14 (fallback) | 14 | 0 | test_fallback.py — status headers, MCP schema, retry/fallback chain, infeasible no-retry |
+| 8 (Phase 2) | 20 (schemas) | 20 | 0 | test_schemas.py — SageJob, SageJobIndex, SageNotifications round-trip + validation |
+| 8 (Phase 2) | 260 (cloud) | 260 | 0 | sage-solver-cloud: full Groot fork, renamed, 240 original + 20 schema tests |
+| **Total** | **591**   | **591**       | **0**         | 393 core + 91 MCP + 260 cloud (includes 20 schema + 14 fallback) |

@@ -1,29 +1,29 @@
-# Project Groot — Build Specification
+# Sage Cloud — Build Specification
 # (living document — updated to reflect actual built state)
 
 **Original draft:** 2026-03-13
 **Author:** Claude (Cowork instance) — for Claude Code execution
-**Repo:** `github.com/pragnakar/Project_Groot`
+**Repo:** `github.com/pragnakar/Project_Sage Cloud`
 **Current version:** v0.3.0 (266 tests, SHA 01c7cd8)
-**First Groot app:** Deferred — sage/ will integrate from its own repo (Project Sage)
-**App module interface:** Generalized — any developer or AI can fork and build their own Groot app
+**First Sage Cloud app:** Deferred — sage/ will integrate from its own repo (Project Sage)
+**App module interface:** Generalized — any developer or AI can fork and build their own Sage Cloud app
 
 ---
 
-## 1. What Groot Is
+## 1. What Sage Cloud Is
 
-Groot is a **LLM runtime environment**. It gives any MCP-compatible LLM agent a persistent execution layer consisting of:
+Sage Cloud is a **LLM runtime environment**. It gives any MCP-compatible LLM agent a persistent execution layer consisting of:
 
 - A web server it can add pages and routes to
 - A persistent artifact store it can read and write
 - A validated tool interface it calls through
 - A pluggable domain module system for domain-specific tools and pages
 
-**The LLM is always external.** Claude, ChatGPT, or any MCP client calls Groot tools over MCP (stdio or SSE) or REST HTTP. Groot never embeds a model.
+**The LLM is always external.** Claude, ChatGPT, or any MCP client calls Sage Cloud tools over MCP (stdio or SSE) or REST HTTP. Sage Cloud never embeds a model.
 
-**The flywheel:** Every artifact the LLM creates (React components, pages, blobs, schemas) is stored in Groot's artifact store. Each session builds on the last. The runtime becomes more capable as artifacts accumulate.
+**The flywheel:** Every artifact the LLM creates (React components, pages, blobs, schemas) is stored in Sage Cloud's artifact store. Each session builds on the last. The runtime becomes more capable as artifacts accumulate.
 
-**The in-chat design pattern:** Claude in Chat (claude.ai/Cowork) generates React components as artifacts for human review. Approved components are staged to Groot via `create_page`. Chat is the design surface and QA layer before artifacts enter the runtime.
+**The in-chat design pattern:** Claude in Chat (claude.ai/Cowork) generates React components as artifacts for human review. Approved components are staged to Sage Cloud via `create_page`. Chat is the design surface and QA layer before artifacts enter the runtime.
 
 ---
 
@@ -39,7 +39,7 @@ Groot is a **LLM runtime environment**. It gives any MCP-compatible LLM agent a 
                            │ MCP / HTTP
                            ▼
 ┌─────────────────────────────────────────────────────────┐
-│                   GROOT RUNTIME (FastAPI)                 │
+│                   SAGE CLOUD RUNTIME (FastAPI)                 │
 │                                                          │
 │  ┌─────────────────┐  ┌──────────────────┐              │
 │  │  Tool Registry   │  │  MCP Transport   │              │
@@ -64,10 +64,10 @@ Groot is a **LLM runtime environment**. It gives any MCP-compatible LLM agent a 
                            │ imports · registers tools
                            ▼
 ┌─────────────────────────────────────────────────────────┐
-│                  GROOT APPS (domain modules)              │
+│                  SAGE CLOUD APPS (domain modules)              │
 │                                                          │
 │  _example/        sage/           hermes/                │
-│  (ships w/ Groot) (own repo)      (future)               │
+│  (ships w/ Sage Cloud) (own repo)      (future)               │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -76,37 +76,37 @@ Groot is a **LLM runtime environment**. It gives any MCP-compatible LLM agent a 
 ## 3. Repository Structure
 
 ```
-Project_Groot/
+Project_Sage Cloud/
 ├── README.md
-├── GROOT_SPEC_V0.1.md         ← This document
-├── pyproject.toml             ← groot-runtime package (v0.3.0)
+├── SAGE_CLOUD_SPEC.md         ← This document
+├── pyproject.toml             ← sage-solver-cloud package (v0.3.0)
 ├── claude_desktop_config.json ← MCP stdio config for Claude Desktop
 │
-├── groot/                     ← Core runtime (domain-agnostic)
+├── sage_cloud/                     ← Core runtime (domain-agnostic)
 │   ├── __init__.py            ← version = "0.3.0"
-│   ├── __main__.py            ← Entry point: python -m groot [--mcp-stdio] [--http] [--port]
+│   ├── __main__.py            ← Entry point: python -m sage_cloud [--mcp-stdio] [--http] [--port]
 │   ├── server.py              ← FastAPI app, startup lifespan, all HTTP routes
 │   ├── tools.py               ← Core tool definitions + registry (19 tools)
 │   ├── artifact_store.py      ← SQLite + filesystem persistence (all CRUD)
 │   ├── page_server.py         ← Page routes: source, meta, export, store endpoints
 │   ├── app_routes.py          ← App module HTTP routes: CRUD, export/import ZIP
-│   ├── app_interface.py       ← GrootAppModule Protocol (documentation-first)
-│   ├── builtin_pages.py       ← groot-dashboard + groot-artifacts JSX (Python strings)
-│   ├── auth.py                ← API key middleware (X-Groot-Key header + ?key= param)
+│   ├── app_interface.py       ← SageCloudAppModule Protocol (documentation-first)
+│   ├── builtin_pages.py       ← sage-dashboard + sage-artifacts JSX (Python strings)
+│   ├── auth.py                ← API key middleware (X-Sage-Key header + ?key= param)
 │   ├── mcp_transport.py       ← MCP stdio + SSE transport (MCPBridge class)
 │   ├── models.py              ← Pydantic schemas for all tool I/O
 │   └── config.py              ← Settings (env vars, .env)
 │
-├── groot_apps/
-│   └── _example/              ← Reference implementation (ships with Groot)
+├── "sage_cloud_apps/
+│   └── _example/              ← Reference implementation (ships with Sage Cloud)
 │       ├── __init__.py
 │       ├── loader.py          ← register(): echo_tool + hello.jsx page
-│       └── README.md          ← "Build Your First Groot App" guide
+│       └── README.md          ← "Build Your First Sage Cloud App" guide
 │
 ├── docs/
-│   └── APP_MODULE_GUIDE.md    ← Developer guide: how to build a Groot app module
+│   └── APP_MODULE_GUIDE.md    ← Developer guide: how to build a Sage Cloud app module
 │
-├── groot-shell/
+├── sage_shell/
 │   └── index.html             ← Self-contained React shell (Babel CDN, no build step)
 │                              ← Path-based router, DynamicPage + DynamicAppPage
 │
@@ -129,7 +129,7 @@ Project_Groot/
 
 ## 4. Core Tool Interface
 
-Groot's built-in tools — available to any LLM agent, domain-agnostic. All return Pydantic models.
+Sage Cloud's built-in tools — available to any LLM agent, domain-agnostic. All return Pydantic models.
 
 ### 4.1 Storage Tools
 
@@ -191,7 +191,7 @@ get_system_state() -> SystemState
 list_artifacts() -> ArtifactSummary
 # Returns full inventory: pages, blobs, schemas, recent logs
 
-get_groot_config() -> GrootConfig
+get_sage_cloud_config() -> SageCloudConfig
 # Returns: { api_key, host, port, base_url, dashboard_url }
 # Tool #15 — lets Claude discover connection details via MCP without manual copy-paste
 ```
@@ -213,13 +213,13 @@ list_app_pages(app: str) -> list[AppPageMeta]
 # Lists all pages in a multi-page app.
 ```
 
-*Total core tools: 19 (tools 1-14 original, 15 = get_groot_config, 16-19 = multi-page app tools)*
+*Total core tools: 19 (tools 1-14 original, 15 = get_sage_cloud_config, 16-19 = multi-page app tools)*
 
 ---
 
 ## 5. Artifact Store — Data Model
 
-SQLite database at `groot.db`.
+SQLite database at `sage-cloud.db`.
 
 ```sql
 -- Blobs: arbitrary data keyed by namespace/name
@@ -286,17 +286,17 @@ CREATE TABLE app_pages (
 
 ## 6. Page Server — React Shell
 
-Groot serves a single React shell application that dynamically loads registered pages.
+Sage Cloud serves a single React shell application that dynamically loads registered pages.
 
 **How it works:**
 1. LLM calls `create_page("my-dashboard", jsx_code)`
-2. Groot stores the JSX in the artifact store
+2. Sage Cloud stores the JSX in the artifact store
 3. Page server exposes `GET /api/pages/my-dashboard/source` → returns the JSX
 4. React shell fetches and renders it at `/apps/my-dashboard`
 
 **Shell routing (path-based, no hash):**
 ```
-/                      ← Groot dashboard (built-in)
+/                      ← Sage Cloud dashboard (built-in)
 /artifacts             ← Artifact browser (built-in)
 /apps/{name}           ← Standalone page (pages table)
 /apps/{name}/          ← Multi-page app root (apps + app_pages tables)
@@ -332,18 +332,18 @@ GET  /api/app-pages/{app}/{page}/source → page JSX
 
 ## 7. App Module Interface
 
-Domain apps register themselves with Groot at startup via a standardized protocol. **Groot ships domain-agnostic** — any developer or AI agent can fork the repo, create `groot_apps/{name}/loader.py`, and have a working app module.
+Domain apps register themselves with Sage Cloud at startup via a standardized protocol. **Sage Cloud ships domain-agnostic** — any developer or AI agent can fork the repo, create `"sage_cloud_apps/{name}/loader.py`, and have a working app module.
 
 ### 7.1 The Protocol
 
 ```python
-# groot/app_interface.py
+# sage_cloud/app_interface.py
 
 from typing import Protocol, runtime_checkable
 
 @runtime_checkable
-class GrootAppModule(Protocol):
-    """Every Groot app module must expose a loader that satisfies this protocol."""
+class SageCloudAppModule(Protocol):
+    """Every Sage Cloud app module must expose a loader that satisfies this protocol."""
 
     async def register(
         self,
@@ -351,8 +351,8 @@ class GrootAppModule(Protocol):
         page_server: "PageServer",
         store: "ArtifactStore"
     ) -> None:
-        """Called by Groot runtime at startup. Register tools, pages, and any
-        artifacts your app needs. Groot passes in the shared runtime services."""
+        """Called by Sage Cloud runtime at startup. Register tools, pages, and any
+        artifacts your app needs. Sage Cloud passes in the shared runtime services."""
         ...
 
     async def health_check(self) -> dict:
@@ -360,10 +360,10 @@ class GrootAppModule(Protocol):
         ...
 ```
 
-### 7.2 Example App (ships with Groot)
+### 7.2 Example App (ships with Sage Cloud)
 
 ```python
-# groot_apps/_example/loader.py
+# "sage_cloud_apps/_example/loader.py
 
 APP_META = {
     "name": "_example",
@@ -379,12 +379,12 @@ async def register(tool_registry, page_server, store):
     await page_server.upsert_page("_example-hello", HELLO_JSX, "Hello world demo page")
 ```
 
-### 7.3 Groot Startup
+### 7.3 Sage Cloud Startup
 
 ```python
-# groot/server.py (simplified)
+# sage_cloud/server.py (simplified)
 
-ENABLED_APPS = os.getenv("GROOT_APPS", "_example").split(",")
+ENABLED_APPS = os.getenv("SAGE_CLOUD_APPS", "_example").split(",")
 
 @asynccontextmanager
 async def lifespan(app):
@@ -392,7 +392,7 @@ async def lifespan(app):
     await store.init_db()
     for app_name in ENABLED_APPS:
         try:
-            module = importlib.import_module(f"groot_apps.{app_name}.loader")
+            module = importlib.import_module(f"sage_cloud_apps.{app_name}.loader")
             await module.register(tool_registry, page_server, store)
             loaded_apps[app_name] = {"module": module, "meta": module.APP_META, "status": "loaded"}
         except ModuleNotFoundError:
@@ -418,18 +418,18 @@ POST   /api/apps/import           → multipart ZIP upload → extract → hot-l
 
 | Item | Convention |
 |---|---|
-| Directory | `groot_apps/{app_name}/loader.py` |
+| Directory | `"sage_cloud_apps/{app_name}/loader.py` |
 | Entry point | `async register(tool_registry, page_server, store)` |
 | Tool namespace | `{app_name}.{tool_name}` (e.g., `sage.solve_optimization`) |
 | Page namespace | `{app_name}-{page_name}` (e.g., `sage-dashboard`) |
-| Config | App reads its own env vars; Groot passes shared services only |
+| Config | App reads its own env vars; Sage Cloud passes shared services only |
 | Metadata | `APP_META` dict in loader.py: name, version, description |
 
 ---
 
 ## 8. Export / Import — ZIP Bundle Format
 
-Groot uses a unified manifest-based ZIP format for both standalone page exports and module app exports.
+Sage Cloud uses a unified manifest-based ZIP format for both standalone page exports and module app exports.
 
 ### 8.1 ZIP Structure
 
@@ -452,7 +452,7 @@ blobs/{key}              ← only when ?include_data=true
 
 ```json
 {
-  "groot_version": "0.3.0",
+  "sage_cloud_version": "0.3.0",
   "exported_at": "2026-03-18T18:00:00Z",
   "name": "my-page",
   "description": "...",
@@ -543,9 +543,9 @@ GET  /api/app-bundles/{name}   → export multi-page app as JSON bundle
 
 ## 11. Built-in Pages
 
-Both built-in pages are stored as Python triple-quoted JSX strings in `groot/builtin_pages.py` and upserted to the pages table on every server start. They are served by the same page server as any user-created page.
+Both built-in pages are stored as Python triple-quoted JSX strings in `sage_cloud/builtin_pages.py` and upserted to the pages table on every server start. They are served by the same page server as any user-created page.
 
-### 11.1 Groot Dashboard (`/`)
+### 11.1 Sage Cloud Dashboard (`/`)
 
 - **API key field:** debounced validation against `/api/system/state`, color dot indicator; synced from `/api/config` on load (prevents stale key after restart)
 - **Available Web Apps:** lists all three kinds with three-column timestamp display (Created / Modified / Opened), search/filter, per-row action dropdowns
@@ -561,7 +561,7 @@ Both built-in pages are stored as Python triple-quoted JSX strings in `groot/bui
 ### 11.2 Artifact Browser (`/artifacts`)
 
 - Tabs: Pages · Blobs · Schemas · Events
-- Fetches `/api/config` on mount to obtain API key; passes `X-Groot-Key` on all authenticated calls
+- Fetches `/api/config` on mount to obtain API key; passes `X-Sage-Key` on all authenticated calls
 - Pages tab: search/filter, compact/table view toggle, source modal viewer
 - Blobs tab: key, size, content type, timestamp, inline Inspect (read content)
 - Schemas tab: name, timestamp, field count, inline Inspect
@@ -574,14 +574,14 @@ Both built-in pages are stored as Python triple-quoted JSX strings in `groot/bui
 **v0.1 MVP:** API key middleware only.
 
 ```python
-# Header: X-Groot-Key: groot_sk_xxxxxxxxxxxx
-# Query param (for MCP SSE): ?key=groot_sk_xxxxxxxxxxxx
-# Keys stored in GROOT_API_KEYS env var (comma-separated)
+# Header: X-Sage-Key: sage_sk_xxxxxxxxxxxx
+# Query param (for MCP SSE): ?key=sage_sk_xxxxxxxxxxxx
+# Keys stored in SAGE_CLOUD_API_KEYS env var (comma-separated)
 # GET /api/config (unauthenticated): returns api_key for browser-side auto-discovery
-# Dev bypass: GROOT_DEV_BYPASS=true skips key check (never enable in production)
+# Dev bypass: SAGE_CLOUD_DEV_BYPASS=true skips key check (never enable in production)
 ```
 
-**Key auto-generation:** On startup, if `GROOT_API_KEYS` is not set, a random key is generated and printed to stdout. If it is set, the env var is respected.
+**Key auto-generation:** On startup, if `SAGE_CLOUD_API_KEYS` is not set, a random key is generated and printed to stdout. If it is set, the env var is respected.
 
 ---
 
@@ -604,7 +604,7 @@ Both built-in pages are stored as Python triple-quoted JSX strings in `groot/bui
 **v0.3.0-session-2 highlights:**
 - MCP stdio + HTTP combined mode: uvicorn logs redirected to stderr (prevents MCP JSON stream corruption)
 - `/api/config` endpoint: browser-discoverable api_key, base_url, dashboard_url
-- `get_groot_config()` tool #15: Claude discovers connection details via MCP
+- `get_sage_cloud_config()` tool #15: Claude discovers connection details via MCP
 - Multi-page app support: `apps` + `app_pages` DB tables; tools 16-19; `DynamicAppPage` shell component; path-based routing replaces hash-based
 - Multi-page JSON bundle import/export (`/api/app-bundles`)
 - Dashboard: 5-bug fix round (hash links, shell chrome, upsert_page, stat-card nav, artifact tab routing)
@@ -624,15 +624,15 @@ Both built-in pages are stored as Python triple-quoted JSX strings in `groot/bui
 
 | # | Decision | Choice | Rationale |
 |---|---|---|---|
-| 1 | LLM topology | External client | LLM calls Groot via MCP/HTTP. Never embedded. |
+| 1 | LLM topology | External client | LLM calls Sage Cloud via MCP/HTTP. Never embedded. |
 | 2 | UI framework | React | LLM codegen quality for JSX >> Flutter/Dart. Component reuse maps to artifact accumulation. |
 | 3 | JSX delivery | Babel standalone eval | No build step. Fast to ship. LLM-generated JSX stripped of import/export before eval; hooks injected into scope. |
 | 4 | Storage | SQLite (no filesystem) | Zero-dependency for MVP. Upgrade path to Postgres. |
 | 5 | MCP transport | stdio + SSE | Both. stdio for Claude Desktop, SSE for remote clients. |
 | 6 | App modules | Import at startup | Simple, no service discovery overhead for MVP. |
 | 7 | State isolation | Per-request (no module-level state) | Multi-app from day one. Learned from sage-mcp's ServerState limitation. |
-| 8 | In-chat design flow | Claude chat → approve → create_page | Chat is Groot's design surface. Every page reviewed before entering artifact store. |
-| 9 | App module scope | Generalized, not sage-specific | G4 (sage) deferred to own repo. Groot ships domain-agnostic with example scaffold. |
+| 8 | In-chat design flow | Claude chat → approve → create_page | Chat is Sage Cloud's design surface. Every page reviewed before entering artifact store. |
+| 9 | App module scope | Generalized, not sage-specific | G4 (sage) deferred to own repo. Sage Cloud ships domain-agnostic with example scaffold. |
 | 10 | App module protocol | Python Protocol class | Documentation-first; runtime_checkable but not enforced — avoids isinstance overhead on app authors. |
 | 11 | Multi-page apps | DB-only (no Python module needed) | LLM can build multi-page apps purely through tool calls; no file system access required. |
 | 12 | Export format | Manifest-based ZIP | Single format for both page and module app exports; manifest.json describes kind and content; blobs optional with ?include_data=true. |
@@ -645,7 +645,7 @@ Both built-in pages are stored as Python triple-quoted JSX strings in `groot/bui
 
 ## 15. Design Rules (non-negotiable)
 
-1. **Groot runtime never contains domain logic.** It knows nothing about optimization, translation, or governance. It provides a runtime. Apps provide domain tools.
+1. **Sage Cloud runtime never contains domain logic.** It knows nothing about optimization, translation, or governance. It provides a runtime. Apps provide domain tools.
 2. **All LLM interactions go through validated tool calls.** No raw code execution in the runtime.
 3. **Artifact store is append-friendly.** Prefer update operations over deletes. The flywheel depends on accumulation.
 4. **State is per-request.** No module-level mutable state. Learned from sage-mcp v0.1.
@@ -655,26 +655,26 @@ Both built-in pages are stored as Python triple-quoted JSX strings in `groot/bui
 
 ---
 
-## 16. What Groot Unlocks
+## 16. What Sage Cloud Unlocks
 
-| Without Groot | With Groot |
+| Without Sage Cloud | With Sage Cloud |
 |---|---|
-| Every LLM project builds its own FastAPI server | Fork Groot, add `groot_apps/{name}/loader.py`, ship |
+| Every LLM project builds its own FastAPI server | Fork Sage Cloud, add `"sage_cloud_apps/{name}/loader.py`, ship |
 | Each project reinvents storage | One artifact store, accumulated across all apps |
 | No standard LLM tool interface | Validated tool registry with Pydantic models and MCP transport |
 | No live UI without a build step | React shell + Babel CDN — LLM creates pages, they render instantly |
-| No design review layer | Claude in Chat generates pages; human approves before they enter Groot |
+| No design review layer | Claude in Chat generates pages; human approves before they enter Sage Cloud |
 | Apps are one-off deployments | Export/import any app (or page) as a ZIP bundle; share across instances |
 | No usage tracking | last_opened_at on every page and app; unified /api/web-apps dashboard |
-| sage-cloud is a one-off app | sage integrates from its own repo as a Groot app module |
-| New AI agents start from scratch | Any AI agent can fork Groot and have a runtime in minutes |
+| sage-cloud is a one-off app | sage integrates from its own repo as a Sage Cloud app module |
+| New AI agents start from scratch | Any AI agent can fork Sage Cloud and have a runtime in minutes |
 
 ---
 
 ## 17. Resume Checklist (for Claude Code)
 
 ```
-[x] 1. Read this file (GROOT_SPEC_V0.1.md)
+[x] 1. Read this file (SAGE_CLOUD_SPEC.md)
 [x] 2. Read .build/AGENT.md, .build/SPEC.md, .build/BUILD_LOG.md
 [x] 3. Check ClickUp Claude Code Queue (901113364003) for pending tasks
 [x] 4. Phase G1: artifact_store + tools + server + auth — 105 tests
@@ -685,7 +685,7 @@ Both built-in pages are stored as Python triple-quoted JSX strings in `groot/bui
 [x] 9. Delete App (purge_data + force) — 184 tests
 [x] 10. Export App ZIP — 197 tests
 [x] 11. Import App ZIP hot-load — 211 tests
-[x] 12. Dashboard v0.3.0 UI overhaul — 211 tests, tag groot-v0.1.0
+[x] 12. Dashboard v0.3.0 UI overhaul — 211 tests, tag sage-cloud-v0.1.0
 [x] 13. v0.3.0-session-2: config tool, multi-page apps, URL fixes, bundle import/export
 [x] 14. v0.3.0-session-3: dual export (manifest ZIP), last_opened_at, /api/web-apps, dashboard UX
 [ ] 15. Next: check ClickUp queue for new tasks
@@ -693,7 +693,7 @@ Both built-in pages are stored as Python triple-quoted JSX strings in `groot/bui
 
 ---
 
-*Original spec authored by Claude (Cowork) on 2026-03-13 based on Peter's groot_spec.md and session discussion.*
+*Original spec authored by Claude (Cowork) on 2026-03-13 based on Peter's sage_cloud_spec.md and session discussion.*
 *G4 deferred to Project Sage on 2026-03-13. G-APP added same day.*
 *Updated 2026-03-18 to reflect v0.3.0 built state (SHA 01c7cd8, 266 tests).*
-*Architecture diagram available as groot_architecture.jsx (first Groot artifact, generated in-chat).*
+*Architecture diagram available as sage_cloud_architecture.jsx (first Sage Cloud artifact, generated in-chat).*

@@ -36,6 +36,7 @@ from sage_solver_mcp.server import (  # noqa: E402
     _handle_solve_from_file,
     _handle_generate_template,
     _state,
+    call_tool,
     ServerState,
 )
 
@@ -111,7 +112,7 @@ class TestReadExampleFiles:
         assert any(kw in t for kw in ["ingredient", "csv", "rows", "columns", "Corn"])
 
     def test_read_missing_file_returns_error(self):
-        resp = run(_handle_read_data_file({"filepath": "/no/such/file.xlsx"}))
+        resp = run(call_tool("read_data_file", {"filepath": "/no/such/file.xlsx"}))
         t = text(resp).lower()
         assert "error" in t or "not found" in t
 
@@ -166,7 +167,7 @@ class TestSolveFromFile:
 
     def test_solve_from_file_missing_path_returns_error(self):
         resp = run(
-            _handle_solve_from_file(
+            call_tool("solve_from_file",
                 {
                     "filepath": "/no/such/file.xlsx",
                     "problem_type": "lp",
@@ -251,8 +252,6 @@ class TestConversationSimulation:
         assert "Traceback" not in text(read_resp)
 
         # Step 2: Solve an LP directly (not from file)
-        from sage_solver_mcp.server import _handle_solve_optimization, _handle_explain_solution
-
         lp_data = {
             "problem_type": "lp",
             "variables": [
@@ -264,12 +263,12 @@ class TestConversationSimulation:
             ],
             "sense": "maximize",
         }
-        solve_resp = run(_handle_solve_optimization({"model": json.dumps(lp_data)}))
+        solve_resp = run(call_tool("solve_optimization", {"model": json.dumps(lp_data)}))
         assert "Traceback" not in text(solve_resp)
 
         # Step 3: Explain result
         if _state.last_result is not None:
-            explain_resp = run(_handle_explain_solution({"detail_level": "brief"}))
+            explain_resp = run(call_tool("explain_solution", {"detail_level": "brief"}))
             assert "Traceback" not in text(explain_resp)
 
     def test_generate_template_then_read_back(self, tmp_path):

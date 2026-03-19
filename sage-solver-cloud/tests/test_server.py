@@ -1,4 +1,4 @@
-"""Integration tests for groot/server.py — HTTP routes, auth, and end-to-end flows."""
+"""Integration tests for sage_cloud/server.py — HTTP routes, auth, and end-to-end flows."""
 
 import pytest
 
@@ -46,7 +46,7 @@ def test_e2e_write_read_list_state(client, auth_headers):
     # 1. Write blob
     resp = client.post(
         "/api/tools/write_blob",
-        json={"key": "test/hello", "data": "Hello, Groot!", "content_type": "text/plain"},
+        json={"key": "test/hello", "data": "Hello, Sage Cloud!", "content_type": "text/plain"},
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -57,7 +57,7 @@ def test_e2e_write_read_list_state(client, auth_headers):
     # 2. Read blob back
     resp = client.post("/api/tools/read_blob", json={"key": "test/hello"}, headers=auth_headers)
     assert resp.status_code == 200
-    assert resp.json()["data"] == "Hello, Groot!"
+    assert resp.json()["data"] == "Hello, Sage Cloud!"
 
     # 3. List blobs with prefix
     resp = client.post("/api/tools/list_blobs", json={"prefix": "test/"}, headers=auth_headers)
@@ -234,6 +234,6 @@ def test_generic_call_invalid_tool_returns_400(client, auth_headers):
 # ---------------------------------------------------------------------------
 
 def test_server_starts_with_no_apps(client, auth_headers):
-    # client fixture already uses GROOT_APPS="" — server should be up
+    # client fixture already uses SAGE_CLOUD_APPS="" — server should be up
     resp = client.get("/health")
     assert resp.status_code == 200

@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "groot-runtime"
+name = "sage-solver-cloud"
 version = "0.3.0"
 description = "Domain-agnostic LLM runtime environment"
 requires-python = ">=3.11"
@@ -25,11 +25,14 @@ dev = [
 ]
 
 [project.scripts]
-groot = "groot.server:main"
+sage-cloud = "sage_cloud.server:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["groot*", "groot_apps*"]
+include = ["sage_cloud*", "sage_cloud_apps*"]
+
+[tool.setuptools.package-data]
+sage_cloud = ["sage_shell/**/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

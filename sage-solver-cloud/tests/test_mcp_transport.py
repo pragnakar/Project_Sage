@@ -1,4 +1,4 @@
-"""Tests for groot/mcp_transport.py — MCPBridge and MCP tool registration."""
+"""Tests for sage_cloud/mcp_transport.py — MCPBridge and MCP tool registration."""
 
 import os
 import tempfile
@@ -8,9 +8,9 @@ from mcp import types
 from mcp.server import Server
 from mcp.shared.exceptions import McpError
 
-from groot.artifact_store import ArtifactStore
-from groot.mcp_transport import MCPBridge, register_tools_with_mcp
-from groot.tools import ToolRegistry, register_core_tools
+from sage_cloud.artifact_store import ArtifactStore
+from sage_cloud.mcp_transport import MCPBridge, register_tools_with_mcp
+from sage_cloud.tools import ToolRegistry, register_core_tools
 
 
 @pytest.fixture
@@ -135,7 +135,7 @@ async def test_register_tools_with_mcp_server():
         registry = ToolRegistry()
         register_core_tools(registry, store)
 
-        server = Server("test-groot")
+        server = Server("test-sage-cloud")
         bridge = register_tools_with_mcp(server, registry, store)
 
         assert bridge is not None

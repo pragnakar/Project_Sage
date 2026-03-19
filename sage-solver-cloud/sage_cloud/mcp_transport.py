@@ -1,4 +1,4 @@
-"""Groot MCP transport — bridges ToolRegistry to MCP protocol (stdio + SSE transports)."""
+"""Sage Cloud MCP transport — bridges ToolRegistry to MCP protocol (stdio + SSE transports)."""
 
 from __future__ import annotations
 
@@ -10,13 +10,13 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.shared.exceptions import McpError
 
-from groot.artifact_store import ArtifactStore
-from groot.models import ToolError
-from groot.tools import ToolRegistry
+from sage_cloud.artifact_store import ArtifactStore
+from sage_cloud.models import ToolError
+from sage_cloud.tools import ToolRegistry
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
-    from groot.config import Settings
+    from sage_cloud.config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +84,7 @@ def register_tools_with_mcp(
 
 async def run_stdio(store: ArtifactStore, registry: ToolRegistry) -> None:
     """Start the MCP server in stdio mode (blocking until stdin closes)."""
-    server = Server("groot")
+    server = Server("sage-cloud")
     register_tools_with_mcp(server, registry, store)
     async with stdio_server() as (read_stream, write_stream):
         await server.run(
@@ -111,7 +111,7 @@ def mount_sse_transport(
     from starlette.routing import Mount, Route
 
     sse_transport = SseServerTransport("/mcp/messages")
-    mcp_server = Server("groot-sse")
+    mcp_server = Server("sage-cloud-sse")
     register_tools_with_mcp(mcp_server, registry, store)
 
     async def _connect_sse(scope, receive, send):  # pragma: no cover
@@ -122,7 +122,7 @@ def mount_sse_transport(
         key = request.query_params.get("key")
         valid_keys = settings.api_keys_list()
 
-        if settings.GROOT_ENV == "production" and not valid_keys:
+        if settings.SAGE_CLOUD_ENV == "production" and not valid_keys:
             return StarletteResponse("Server misconfiguration", status_code=500)
 
         if valid_keys and key not in valid_keys:

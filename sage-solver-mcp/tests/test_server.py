@@ -176,9 +176,9 @@ def portfolio_xlsx_path(tmp_path: Path) -> Path:
 
 
 class TestToolRegistration:
-    def test_seven_tools_registered(self):
+    def test_eight_tools_registered(self):
         tools = run(_server_module.list_tools())
-        assert len(tools) == 7
+        assert len(tools) == 8
 
     def test_tool_names(self):
         tools = run(_server_module.list_tools())
@@ -191,6 +191,7 @@ class TestToolRegistration:
             "check_feasibility",
             "generate_template",
             "suggest_relaxations",
+            "sage_status",
         }
         assert names == expected
 
@@ -308,7 +309,7 @@ class TestReadDataFile:
         assert "name" in text.lower() or "expected_return" in text.lower()
 
     def test_missing_file_raises_error(self):
-        result = run(_server_module._handle_read_data_file({"filepath": "/nonexistent/path/file.xlsx"}))
+        result = run(_server_module.call_tool("read_data_file", {"filepath": "/nonexistent/path/file.xlsx"}))
         text = result[0].text.lower()
         assert "error" in text or "not found" in text or "sage error" in text
 
@@ -352,7 +353,7 @@ class TestSolveFromFile:
         assert "_optimized" in text or "Results written" in text
 
     def test_bad_file_path_returns_error(self):
-        result = run(_server_module._handle_solve_from_file({
+        result = run(_server_module.call_tool("solve_from_file", {
             "filepath": "/no/such/file.xlsx",
             "problem_type": "portfolio",
         }))
@@ -521,17 +522,17 @@ class TestErrorHandling:
     def test_malformed_model_returns_error_not_crash(self):
         """Completely malformed model JSON should return an error, not raise."""
         args = {"problem_type": "lp", "variables": "not_a_list"}
-        result = run(_server_module._handle_solve_optimization(args))
+        result = run(_server_module.call_tool("solve_optimization", args))
         text = result[0].text.lower()
         assert "error" in text or "sage" in text
 
     def test_bad_filepath_read_data_error(self):
-        result = run(_server_module._handle_read_data_file({"filepath": "does_not_exist.xlsx"}))
+        result = run(_server_module.call_tool("read_data_file", {"filepath": "does_not_exist.xlsx"}))
         text = result[0].text.lower()
         assert "error" in text or "not found" in text
 
     def test_bad_filepath_solve_from_file_error(self):
-        result = run(_server_module._handle_solve_from_file({
+        result = run(_server_module.call_tool("solve_from_file", {
             "filepath": "/no/such/file.xlsx",
             "problem_type": "portfolio",
         }))
@@ -560,7 +561,7 @@ class TestErrorHandling:
             "constraints": [],
             # missing 'objective'
         }
-        result = run(_server_module._handle_solve_optimization(args))
+        result = run(_server_module.call_tool("solve_optimization", args))
         text = result[0].text.lower()
         assert "error" in text or "validation" in text
 
@@ -572,6 +573,6 @@ class TestErrorHandling:
             "risk_aversion": 1.0,
             "constraints": {"max_total_allocation": 1.0},
         }
-        result = run(_server_module._handle_solve_optimization(args))
+        result = run(_server_module.call_tool("solve_optimization", args))
         text = result[0].text.lower()
         assert "error" in text

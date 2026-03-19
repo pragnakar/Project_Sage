@@ -9,30 +9,30 @@ def test_builtin_dashboard_is_listed(client):
     resp = client.get("/api/pages")
     assert resp.status_code == 200
     names = [p["name"] for p in resp.json()]
-    assert "groot-dashboard" in names
+    assert "sage-dashboard" in names
 
 
 def test_builtin_artifacts_is_listed(client):
     resp = client.get("/api/pages")
     assert resp.status_code == 200
     names = [p["name"] for p in resp.json()]
-    assert "groot-artifacts" in names
+    assert "sage-artifacts" in names
 
 
-def test_dashboard_source_contains_groot(client):
-    resp = client.get("/api/pages/groot-dashboard/source")
+def test_dashboard_source_contains_sage_cloud(client):
+    resp = client.get("/api/pages/sage-dashboard/source")
     assert resp.status_code == 200
-    assert "Groot" in resp.text
+    assert "Sage Cloud" in resp.text
 
 
 def test_dashboard_source_references_system_state(client):
-    resp = client.get("/api/pages/groot-dashboard/source")
+    resp = client.get("/api/pages/sage-dashboard/source")
     assert resp.status_code == 200
     assert "/api/system/state" in resp.text
 
 
 def test_artifacts_source_contains_tab_structure(client):
-    resp = client.get("/api/pages/groot-artifacts/source")
+    resp = client.get("/api/pages/sage-artifacts/source")
     assert resp.status_code == 200
     src = resp.text
     assert "blobs" in src.lower()
@@ -46,8 +46,8 @@ def test_builtin_pages_survive_restart(client):
     resp = client.get("/api/pages")
     assert resp.status_code == 200
     names = [p["name"] for p in resp.json()]
-    assert "groot-dashboard" in names
-    assert "groot-artifacts" in names
+    assert "sage-dashboard" in names
+    assert "sage-artifacts" in names
 
 
 # ---------------------------------------------------------------------------

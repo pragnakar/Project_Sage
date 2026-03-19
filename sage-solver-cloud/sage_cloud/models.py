@@ -1,4 +1,4 @@
-"""Pydantic v2 models for all Groot core tool I/O."""
+"""Pydantic v2 models for all Sage Cloud core tool I/O."""
 
 from typing import Any, Callable
 
@@ -181,7 +181,7 @@ class ToolInfo(BaseModel):
 
 
 class CoreInfo(BaseModel):
-    """Groot core runtime summary."""
+    """Sage Cloud core runtime summary."""
     tools_count: int
     pages_count: int
     version: str
@@ -238,14 +238,14 @@ class AppImportResult(BaseModel):
     message: str = ""
 
 
-class GrootConfig(BaseModel):
-    """Runtime connection info returned by get_groot_config."""
+class SageCloudConfig(BaseModel):
+    """Runtime connection info returned by get_sage_cloud_config."""
     api_key: str
     host: str
     port: int
     base_url: str
     dashboard_url: str
-    note: str = "Use api_key as the X-Groot-Key header for authenticated HTTP requests."
+    note: str = "Use api_key as the X-Sage-Key header for authenticated HTTP requests."
 
 
 # ---------------------------------------------------------------------------

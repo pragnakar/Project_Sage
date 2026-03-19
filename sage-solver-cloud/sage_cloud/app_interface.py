@@ -1,18 +1,18 @@
 """
-Groot App Module Interface
+Sage Cloud App Module Interface
 ==========================
 
-Every Groot app module must:
+Every Sage Cloud app module must:
 
-1. Live in ``groot_apps/{name}/``
+1. Live in ``"sage_cloud_apps/{name}/``
 2. Provide a ``loader.py`` with an async ``register()`` function
 3. Optionally declare ``APP_META`` and ``health_check()``
 
 Minimal ``loader.py``::
 
-    from groot.tools import ToolRegistry
-    from groot.page_server import PageServer
-    from groot.artifact_store import ArtifactStore
+    from sage_cloud.tools import ToolRegistry
+    from sage_cloud.page_server import PageServer
+    from sage_cloud.artifact_store import ArtifactStore
 
     async def register(
         tool_registry: ToolRegistry,
@@ -27,25 +27,25 @@ Minimal ``loader.py``::
         return {"status": "healthy", "checks": {}}
 
     APP_META = {
-        "description": "My custom Groot app",
+        "description": "My custom Sage Cloud app",
         "version": "0.1.0",
     }
 
-The ``GrootAppModule`` Protocol below is documentation-first.
+The ``SageCloudAppModule`` Protocol below is documentation-first.
 It is NOT enforced at runtime — use it for type checking and reference.
 """
 
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from groot.artifact_store import ArtifactStore
-    from groot.page_server import PageServer
-    from groot.tools import ToolRegistry
+    from sage_cloud.artifact_store import ArtifactStore
+    from sage_cloud.page_server import PageServer
+    from sage_cloud.tools import ToolRegistry
 
 
 @runtime_checkable
-class GrootAppModule(Protocol):
-    """Protocol that Groot app loader modules should satisfy.
+class SageCloudAppModule(Protocol):
+    """Protocol that Sage Cloud app loader modules should satisfy.
 
     Only ``register`` is strictly required. ``APP_META`` and
     ``health_check`` are optional extensions.
@@ -57,7 +57,7 @@ class GrootAppModule(Protocol):
         page_server: "PageServer",
         store: "ArtifactStore",
     ) -> None:
-        """Register tools and pages into the Groot runtime."""
+        """Register tools and pages into the Sage Cloud runtime."""
         ...
 
     # Optional attributes — presence is checked at runtime, not enforced

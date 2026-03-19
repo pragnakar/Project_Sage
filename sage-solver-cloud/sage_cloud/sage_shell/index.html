@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Groot</title>
+  <title>Sage Cloud</title>
 
   <!-- React 18 CDN -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -106,6 +106,8 @@
     function parseRoute(path) {
       if (path === '/' || path === '') return { route: 'dashboard' };
       if (path === '/artifacts' || path.startsWith('/artifacts?')) return { route: 'artifacts' };
+      // Built-in pages that should render with nav chrome
+      if (path === '/apps/sage-jobs') return { route: 'sage-jobs' };
       // /apps/{app}/{page} — multi-page app page (two segments)
       const appPage = path.match(/^\/apps\/([^/]+)\/([^/?#]+)\/?$/);
       if (appPage) return { route: 'app-page', app: appPage[1], page: appPage[2] };
@@ -295,12 +297,16 @@
     // ---------------------------------------------------------------------------
     // Built-in pages — delegated to DynamicPage (served from artifact store)
     // ---------------------------------------------------------------------------
-    function GrootDashboard() {
-      return <DynamicPage key="groot-dashboard" name="groot-dashboard" />;
+    function SageDashboard() {
+      return <DynamicPage key="sage-dashboard" name="sage-dashboard" />;
     }
 
     function ArtifactBrowser() {
-      return <DynamicPage key="groot-artifacts" name="groot-artifacts" />;
+      return <DynamicPage key="sage-artifacts" name="sage-artifacts" />;
+    }
+
+    function SageJobs() {
+      return <DynamicPage key="sage-jobs" name="sage-jobs" />;
     }
 
     // ---------------------------------------------------------------------------
@@ -318,11 +324,13 @@
     }
 
     function Nav({ current }) {
+      const isJobsPage = current.route === 'sage-jobs';
       return (
         <nav>
-          <NavLink className="logo" href="/">Groot</NavLink>
-          <NavLink href="/"         className={current.route === 'dashboard' ? 'active' : ''}>Dashboard</NavLink>
-          <NavLink href="/artifacts" className={current.route === 'artifacts' ? 'active' : ''}>Artifacts</NavLink>
+          <NavLink className="logo" href="/">Sage Cloud</NavLink>
+          <NavLink href="/"              className={current.route === 'dashboard' ? 'active' : ''}>Dashboard</NavLink>
+          <NavLink href="/apps/sage-jobs" className={isJobsPage ? 'active' : ''}>Jobs</NavLink>
+          <NavLink href="/artifacts"     className={current.route === 'artifacts' ? 'active' : ''}>Artifacts</NavLink>
           <div className="nav-right">
             {current.route === 'app-page' && (
               <span className="page-chip">{current.app}/{current.page}</span>
@@ -341,7 +349,7 @@
       const path    = usePathname();
       const current = parseRoute(path);
 
-      // Standalone pages and app pages render fullscreen — no Groot chrome
+      // Standalone pages and app pages render fullscreen — no Sage Cloud chrome
       if (current.route === 'page') {
         return <DynamicPage key={current.name} name={current.name} />;
       }
@@ -356,7 +364,8 @@
         <div id="app">
           <Nav current={current} />
           <main>
-            {current.route === 'dashboard' && <GrootDashboard />}
+            {current.route === 'dashboard' && <SageDashboard />}
+            {current.route === 'sage-jobs' && <SageJobs />}
             {current.route === 'artifacts' && <ArtifactBrowser />}
             {current.route === 'not-found' && (
               <div className="error-box"><strong>Route not found</strong></div>

@@ -153,8 +153,9 @@ def infeasible_lp_result(infeasible_lp_model: LPModel) -> SolverResult:
 class TestDetailLevels:
     def test_brief_is_short(self, simple_lp_model, simple_lp_result):
         text = explain_result(simple_lp_result, simple_lp_model, "brief")
-        # Brief should be a single sentence / short paragraph — less than 200 chars
-        assert len(text) < 200
+        # Brief should be a single sentence / short paragraph — less than 300 chars
+        # (includes SAGE attribution line appended to all explanations)
+        assert len(text) < 300
         assert "Optimal" in text or "optimal" in text
 
     def test_standard_is_longer_than_brief(self, simple_lp_model, simple_lp_result):

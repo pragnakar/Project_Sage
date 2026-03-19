@@ -1,12 +1,12 @@
-"""Tests for groot/tools.py — ToolRegistry and all 12 core tools."""
+"""Tests for sage_cloud/tools.py — ToolRegistry and all 12 core tools."""
 
 import os
 import tempfile
 
 import pytest
 
-from groot.artifact_store import ArtifactStore
-from groot.models import (
+from sage_cloud.artifact_store import ArtifactStore
+from sage_cloud.models import (
     ArtifactSummary,
     BlobData,
     BlobResult,
@@ -16,7 +16,7 @@ from groot.models import (
     SystemState,
     ToolError,
 )
-from groot.tools import ToolRegistry, register_core_tools
+from sage_cloud.tools import ToolRegistry, register_core_tools
 
 
 @pytest.fixture
@@ -100,7 +100,7 @@ async def test_read_blob_after_write(registry_and_store):
 async def test_list_blobs_with_prefix(registry_and_store):
     registry, store = registry_and_store
     await registry.call("write_blob", store=store, key="sage/a.json", data="{}")
-    await registry.call("write_blob", store=store, key="groot/b.txt", data="x")
+    await registry.call("write_blob", store=store, key="sage_cloud/b.txt", data="x")
     result = await registry.call("list_blobs", store=store, prefix="sage/")
     assert isinstance(result, list)
     assert all(b.key.startswith("sage/") for b in result)

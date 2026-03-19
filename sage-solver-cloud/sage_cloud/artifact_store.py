@@ -1,11 +1,11 @@
-"""Groot artifact store — SQLite + filesystem persistence for blobs, pages, schemas, and events."""
+"""Sage Cloud artifact store — SQLite + filesystem persistence for blobs, pages, schemas, and events."""
 
 import json
 from datetime import datetime, timezone
 
 import aiosqlite
 
-from groot.models import (
+from sage_cloud.models import (
     AppPageMeta,
     AppPageResult,
     AppResult,
@@ -29,31 +29,31 @@ def _now() -> str:
 
 def _page_url(name: str) -> str:
     """Return the full URL for a standalone page, e.g. http://localhost:8000/apps/hello."""
-    from groot.config import get_settings
+    from sage_cloud.config import get_settings
     s = get_settings()
-    host = s.GROOT_HOST if s.GROOT_HOST != "0.0.0.0" else "localhost"
-    return f"http://{host}:{s.GROOT_PORT}/apps/{name}"
+    host = s.SAGE_CLOUD_HOST if s.SAGE_CLOUD_HOST != "0.0.0.0" else "localhost"
+    return f"http://{host}:{s.SAGE_CLOUD_PORT}/apps/{name}"
 
 
 def _app_base_url(app_name: str) -> str:
     """Return the base URL for an app, e.g. http://localhost:8000/apps/dashboard/."""
-    from groot.config import get_settings
+    from sage_cloud.config import get_settings
     s = get_settings()
-    host = s.GROOT_HOST if s.GROOT_HOST != "0.0.0.0" else "localhost"
-    return f"http://{host}:{s.GROOT_PORT}/apps/{app_name}/"
+    host = s.SAGE_CLOUD_HOST if s.SAGE_CLOUD_HOST != "0.0.0.0" else "localhost"
+    return f"http://{host}:{s.SAGE_CLOUD_PORT}/apps/{app_name}/"
 
 
 def _app_page_url(app_name: str, page_name: str) -> str:
     """Return the full URL for an app page. 'index' maps to the app root."""
-    from groot.config import get_settings
+    from sage_cloud.config import get_settings
     s = get_settings()
-    host = s.GROOT_HOST if s.GROOT_HOST != "0.0.0.0" else "localhost"
-    base = f"http://{host}:{s.GROOT_PORT}/apps/{app_name}"
+    host = s.SAGE_CLOUD_HOST if s.SAGE_CLOUD_HOST != "0.0.0.0" else "localhost"
+    base = f"http://{host}:{s.SAGE_CLOUD_PORT}/apps/{app_name}"
     return f"{base}/" if page_name == "index" else f"{base}/{page_name}"
 
 
 class ArtifactStore:
-    """SQLite-backed persistence layer for all Groot artifacts."""
+    """SQLite-backed persistence layer for all Sage Cloud artifacts."""
 
     def __init__(self, db_path: str, artifact_dir: str) -> None:
         self._db_path = db_path

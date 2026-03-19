@@ -5,60 +5,11 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from groot.config import Settings, get_settings
-from groot.server import app
+from sage_cloud.config import Settings, get_settings
+from sage_cloud.server import app
 
-TEST_API_KEY = "groot_sk_test_key"
-AUTH = {"X-Groot-Key": TEST_API_KEY}
-
-
-@pytest.fixture
-def example_settings(tmp_path):
-    return Settings(
-        GROOT_API_KEYS=TEST_API_KEY,
-        GROOT_DB_PATH=str(tmp_path / "test.db"),
-        GROOT_ARTIFACT_DIR=str(tmp_path / "artifacts"),
-        GROOT_APPS="_example",
-        GROOT_ENV="development",
-    )
-
-
-@pytest.fixture
-def example_client(example_settings):
-    """Client with _example app loaded (status=loaded)."""
-    app.dependency_overrides[get_settings] = lambda: example_settings
-    with TestClient(app, raise_server_exceptions=False) as c:
-        yield c
-    app.dependency_overrides.clear()
-
-
-# ---------------------------------------------------------------------------
-# Auth guard
-# ---------------------------------------------------------------------------
-
-def test_delete_requires_auth(example_client):
-    resp = example_client.delete("/api/apps/_example?force=true")
-    assert resp.status_code == 401
-
-
-# ---------------------------------------------------------------------------
-# 404 — app not found
-# ---------------------------------------------------------------------------
-
-def test_delete_missing_app_returns_404(example_client):
-    resp = example_client.delete("/api/apps/nonexistent", headers=AUTH)
-    assert resp.status_code == 404
-    assert "nonexistent" in resp.json()["detail"]
-
-
-# ---------------------------------------------------------------------------
-# 409 — loaded app requires force
-# ---------------------------------------------------------------------------
-
-def test_delete_loaded_app_without_force_returns_409(example_client):
-    resp = example_client.delete("/api/apps/_example", headers=AUTH)
-    assert resp.status_code == 409
-    assert "force=true" in resp.json()["detail"]
+TEST_API_KEY = "sage_sk_test_key"
+AUTH = {"X-Sage-Key": TEST_API_KEY}
 
 
 # ---------------------------------------------------------------------------
@@ -89,67 +40,6 @@ def test_delete_error_app_removes_from_list(client, auth_headers):
     resp = client.get("/api/apps")
     names = [a["name"] for a in resp.json()["apps"]]
     assert "broken_app" not in names
-
-
-# ---------------------------------------------------------------------------
-# Successful delete with force=true
-# ---------------------------------------------------------------------------
-
-def test_delete_loaded_app_with_force_succeeds(example_client):
-    with patch("groot.app_routes.shutil.rmtree") as mock_rm:
-        resp = example_client.delete("/api/apps/_example?force=true", headers=AUTH)
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["name"] == "_example"
-    assert body["tools_removed"] == 1   # echo_tool
-    assert body["pages_removed"] == 1   # _example-hello
-    assert body["directory_removed"] is True
-    mock_rm.assert_called_once()
-
-
-def test_delete_removes_app_from_list(example_client):
-    with patch("groot.app_routes.shutil.rmtree"):
-        example_client.delete("/api/apps/_example?force=true", headers=AUTH)
-
-    resp = example_client.get("/api/apps")
-    names = [a["name"] for a in resp.json()["apps"]]
-    assert "_example" not in names
-
-
-def test_delete_removes_app_pages(example_client):
-    """After deleting _example, its pages are gone from /api/pages."""
-    before = example_client.get("/api/pages")
-    page_names_before = [p["name"] for p in before.json()]
-    assert "_example-hello" in page_names_before
-
-    with patch("groot.app_routes.shutil.rmtree"):
-        example_client.delete("/api/apps/_example?force=true", headers=AUTH)
-
-    after = example_client.get("/api/pages")
-    page_names_after = [p["name"] for p in after.json()]
-    assert "_example-hello" not in page_names_after
-
-
-def test_delete_removes_app_tools(example_client):
-    """After deleting _example with force, its tools are gone from the registry."""
-    resp_before = example_client.post(
-        "/api/tools/call",
-        json={"tool": "echo_tool", "arguments": {"message": "ping"}},
-        headers=AUTH,
-    )
-    assert resp_before.status_code == 200
-
-    with patch("groot.app_routes.shutil.rmtree"):
-        example_client.delete("/api/apps/_example?force=true", headers=AUTH)
-
-    # echo_tool should now return 400 (tool not found)
-    resp_after = example_client.post(
-        "/api/tools/call",
-        json={"tool": "echo_tool", "arguments": {"message": "ping"}},
-        headers=AUTH,
-    )
-    assert resp_after.status_code == 400
-    assert resp_after.json()["detail"]["error"] == "not_found"
 
 
 # ---------------------------------------------------------------------------

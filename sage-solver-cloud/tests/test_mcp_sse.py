@@ -71,9 +71,9 @@ async def test_mcp_bridge_tools_available_after_sse_mount(client, test_settings)
     """After SSE mount in lifespan, MCPBridge still exposes all 14 tools."""
     import os
     import tempfile
-    from groot.artifact_store import ArtifactStore
-    from groot.mcp_transport import MCPBridge
-    from groot.tools import ToolRegistry, register_core_tools
+    from sage_cloud.artifact_store import ArtifactStore
+    from sage_cloud.mcp_transport import MCPBridge
+    from sage_cloud.tools import ToolRegistry, register_core_tools
 
     with tempfile.TemporaryDirectory() as tmpdir:
         store = ArtifactStore(db_path=os.path.join(tmpdir, "t.db"), artifact_dir=tmpdir)

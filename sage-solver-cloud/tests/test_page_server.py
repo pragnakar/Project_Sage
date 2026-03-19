@@ -1,4 +1,4 @@
-"""Tests for groot/page_server.py — PageServer routes and static registration."""
+"""Tests for sage_cloud/page_server.py — PageServer routes and static registration."""
 
 import os
 import tempfile
@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from groot.artifact_store import ArtifactStore
-from groot.page_server import PageServer, _validate_name
+from sage_cloud.artifact_store import ArtifactStore
+from sage_cloud.page_server import PageServer, _validate_name
 
 
 # ---------------------------------------------------------------------------
@@ -43,12 +43,12 @@ def test_invalid_names_raise():
 # ---------------------------------------------------------------------------
 
 def test_list_pages_returns_builtin_pages(client, auth_headers):
-    # Built-in pages (groot-dashboard, groot-artifacts) are registered at startup
+    # Built-in pages (sage-dashboard, sage-artifacts) are registered at startup
     resp = client.get("/api/pages")
     assert resp.status_code == 200
     names = [p["name"] for p in resp.json()]
-    assert "groot-dashboard" in names
-    assert "groot-artifacts" in names
+    assert "sage-dashboard" in names
+    assert "sage-artifacts" in names
 
 
 def test_list_pages_after_create(client, auth_headers):
@@ -85,12 +85,12 @@ def test_list_pages_multiple(client, auth_headers):
 def test_page_source_returns_jsx(client, auth_headers):
     client.post(
         "/api/tools/create_page",
-        json={"name": "src-test", "jsx_code": "<h1>Hello Groot</h1>"},
+        json={"name": "src-test", "jsx_code": "<h1>Hello Sage Cloud</h1>"},
         headers=auth_headers,
     )
     resp = client.get("/api/pages/src-test/source")
     assert resp.status_code == 200
-    assert resp.text == "<h1>Hello Groot</h1>"
+    assert resp.text == "<h1>Hello Sage Cloud</h1>"
 
 
 def test_page_source_content_type_is_text_plain(client, auth_headers):

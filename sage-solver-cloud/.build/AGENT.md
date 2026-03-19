@@ -1,12 +1,12 @@
 # AGENT.md — AI Directive
-# Project: Project Groot
+# Project: Sage Cloud
 # Version: 0.1 — Initialized 2026-03-13
 
 ---
 
 ## Identity
 
-You are an AI coding agent operating under the LLM-Native Software Engineering protocol. Your role is to build Project Groot according to the specification in SPEC.md, following the constraints in this directive. You do not make architectural decisions unilaterally. You build what the spec describes and verify before proceeding.
+You are an AI coding agent operating under the LLM-Native Software Engineering protocol. Your role is to build Sage Cloud according to the specification in SPEC.md, following the constraints in this directive. You do not make architectural decisions unilaterally. You build what the spec describes and verify before proceeding.
 
 ---
 
@@ -20,7 +20,7 @@ You are an AI coding agent operating under the LLM-Native Software Engineering p
 6. **Tests are not optional.** Every tool function has unit tests covering happy path, error path, and boundary conditions. Integration tests exist for all tool-to-store boundaries.
 7. **Fail secure.** API key validation failures always return 401. Never fail open.
 8. **No breaking changes without a version boundary.** Tool signatures and artifact store schemas are not modified in ways that break existing artifacts.
-9. **Groot runtime is domain-agnostic.** No solver logic, no domain knowledge inside `groot/`. Domain code lives in `groot-apps/{name}/` only.
+9. **Sage Cloud runtime is domain-agnostic.** No solver logic, no domain knowledge inside `sage_cloud/`. Domain code lives in `sage-cloud-apps/{name}/` only.
 10. **All tool calls return Pydantic models.** Never bare dicts, never raw exceptions. Structured errors only.
 11. **No module-level mutable state.** Per-request state only. Learned from sage-mcp v0.1 `ServerState` limitation.
 12. **React shell has no build step in v0.1.** Babel standalone CDN only.
@@ -58,13 +58,13 @@ You are an AI coding agent operating under the LLM-Native Software Engineering p
 
 ## ClickUp Coordination
 
-All tasks flow through ClickUp. Read `.build/Claude-AI_Claude-Code-ClickUp-Groot.md` before every session.
+All tasks flow through ClickUp. Read `.build/Claude-AI_Claude-Code-ClickUp-SageCloud.md` before every session.
 
 - Pick up tasks from: → Claude Code Queue (`901113364003`)
-- Post phase completions to: Groot workflow (`901113373077`) at status `OPEN-HUMAN-REVIEW`
+- Post phase completions to: Sage Cloud workflow (`901113373077`) at status `OPEN-HUMAN-REVIEW`
 - Drop session logs in: Activity Log (`901113365508`)
 - Do not begin a phase until the task status reaches `HAND OFF TO CLAUDE CODE`
-- Do not advance to the next phase without Peter's approval in Groot workflow
+- Do not advance to the next phase without Peter's approval in Sage Cloud workflow
 
 ---
 
@@ -75,7 +75,7 @@ Each development phase follows this exact cycle:
 1. **Pick up** — Find task in Claude Code Queue at status `HAND OFF TO CLAUDE CODE`
 2. **Build** — Implement only what the current phase spec describes
 3. **Verify** — Run the phase verification prompt and report evidence (test results, checklist)
-4. **Report** — Post `[CLAUDE-CODE] Phase G{N} complete` task in Groot workflow at `OPEN-HUMAN-REVIEW`
+4. **Report** — Post `[CLAUDE-CODE] Phase G{N} complete` task in Sage Cloud workflow at `OPEN-HUMAN-REVIEW`
 5. **Wait** — Do not begin next phase until Peter moves the gate task forward
 
 ---
@@ -92,7 +92,7 @@ Each phase BLOCKS the next. Never start G2 until G1 is verified and Peter has ap
 
 ## Output Conventions
 
-**Repo:** `github.com/pragnakar/Project_Groot` (create in Phase G1)
+**Repo:** `github.com/pragnakar/Project_Sage Cloud` (create in Phase G1)
 
 **Branch naming:**
 ```
@@ -104,28 +104,28 @@ feature/g4-sage-module
 
 **Commit messages:** Conventional commits
 ```
-feat(groot): add artifact store SQLite backend
+feat(sage-cloud): add artifact store SQLite backend
 feat(sage): register solve_optimization tool
-fix(runtime): handle empty artifact store on startup
-test(tools): add write_blob round-trip test
+fix(sage-cloud): handle empty artifact store on startup
+test(sage-cloud): add write_blob round-trip test
 ```
 
 **Tags:**
 ```
-groot-v0.1.0-g1  — after G1 merged
-groot-v0.1.0-g2  — after G2 merged
-groot-v0.1.0     — after G3 merged (runtime complete)
-sage-v0.2.0      — after G4 merged (first Groot app)
+sage-cloud-v0.1.0-g1  — after G1 merged
+sage-cloud-v0.1.0-g2  — after G2 merged
+sage-cloud-v0.1.0     — after G3 merged (runtime complete)
+sage-v0.2.0      — after G4 merged (first Sage Cloud app)
 ```
 
 ---
 
 ## Project-Specific Constraints
 
-1. `groot/` is domain-agnostic. No optimization, translation, or domain knowledge ever enters `groot/`.
-2. LLM is always external. Never call an LLM API from inside Groot runtime.
-3. Do not touch `groot_spec.md` (Peter's original vision doc). Read only.
-4. Do not re-implement sage-solver-core. Import it inside `groot-apps/sage/` only.
+1. `sage_cloud/` is domain-agnostic. No optimization, translation, or domain knowledge ever enters `sage_cloud/`.
+2. LLM is always external. Never call an LLM API from inside Sage Cloud runtime.
+3. Do not touch `sage_cloud_spec.md` (Peter's original vision doc). Read only.
+4. Do not re-implement sage-solver-core. Import it inside `sage-cloud-apps/sage/` only.
 5. Artifact store is append-friendly. Prefer update over delete. Never delete without Peter's explicit approval.
 6. React components generated by claude.ai in chat must be reviewed and approved by Peter before `create_page` is called.
 7. For any spec ambiguity, ask in ClickUp Chat (`901113365507`) or Async Messages (`901113364006`). Do NOT guess.
@@ -137,5 +137,5 @@ sage-v0.2.0      — after G4 merged (first Groot app)
 - Multi-tenancy or user accounts (API key per deployment only)
 - Module federation or Vite build pipeline (Babel standalone for v0.1)
 - Database migration tooling (schema is created fresh on startup for MVP)
-- Hermes, Athena, or any Groot app other than sage/
+- Hermes, Athena, or any Sage Cloud app other than sage/
 - Production-grade JSX sandboxing (v0.2 concern)

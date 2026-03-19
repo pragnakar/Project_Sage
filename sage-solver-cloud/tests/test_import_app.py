@@ -9,11 +9,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from groot.config import Settings, get_settings
-from groot.server import app
+from sage_cloud.config import Settings, get_settings
+from sage_cloud.server import app
 
-TEST_API_KEY = "groot_sk_test_key"
-AUTH = {"X-Groot-Key": TEST_API_KEY}
+TEST_API_KEY = "sage_sk_test_key"
+AUTH = {"X-Sage-Key": TEST_API_KEY}
 
 # ---------------------------------------------------------------------------
 # Helpers — build ZIP bytes in memory
@@ -46,11 +46,11 @@ def _minimal_app_zip(app_name: str, extra: dict[str, str] | None = None) -> byte
 @pytest.fixture
 def client_no_apps(tmp_path):
     settings = Settings(
-        GROOT_API_KEYS=TEST_API_KEY,
-        GROOT_DB_PATH=str(tmp_path / "test.db"),
-        GROOT_ARTIFACT_DIR=str(tmp_path / "artifacts"),
-        GROOT_APPS="",
-        GROOT_ENV="development",
+        SAGE_CLOUD_API_KEYS=TEST_API_KEY,
+        SAGE_CLOUD_DB_PATH=str(tmp_path / "test.db"),
+        SAGE_CLOUD_ARTIFACT_DIR=str(tmp_path / "artifacts"),
+        SAGE_CLOUD_APPS="",
+        SAGE_CLOUD_ENV="development",
     )
     app.dependency_overrides[get_settings] = lambda: settings
     with TestClient(app, raise_server_exceptions=False) as c:
@@ -156,8 +156,8 @@ def _mock_loader():
 
 def test_import_valid_app_returns_200(client_no_apps, tmp_path):
     zip_bytes = _minimal_app_zip("newapp")
-    with patch("groot.app_routes._GROOT_APPS_DIR", tmp_path / "groot_apps"), \
-         patch("groot.app_routes.importlib.import_module", return_value=_mock_loader()):
+    with patch("sage_cloud.app_routes._SAGE_CLOUD_APPS_DIR", tmp_path / "sage_cloud_apps"), \
+         patch("sage_cloud.app_routes.importlib.import_module", return_value=_mock_loader()):
         resp = _upload(client_no_apps, zip_bytes)
     assert resp.status_code == 200
     body = resp.json()
@@ -167,8 +167,8 @@ def test_import_valid_app_returns_200(client_no_apps, tmp_path):
 
 def test_import_result_has_correct_fields(client_no_apps, tmp_path):
     zip_bytes = _minimal_app_zip("myapp2")
-    with patch("groot.app_routes._GROOT_APPS_DIR", tmp_path / "groot_apps"), \
-         patch("groot.app_routes.importlib.import_module", return_value=_mock_loader()):
+    with patch("sage_cloud.app_routes._SAGE_CLOUD_APPS_DIR", tmp_path / "sage_cloud_apps"), \
+         patch("sage_cloud.app_routes.importlib.import_module", return_value=_mock_loader()):
         resp = _upload(client_no_apps, zip_bytes)
     body = resp.json()
     assert "tools_registered" in body
@@ -179,8 +179,8 @@ def test_import_result_has_correct_fields(client_no_apps, tmp_path):
 
 def test_import_app_appears_in_list(client_no_apps, tmp_path):
     zip_bytes = _minimal_app_zip("listapp")
-    with patch("groot.app_routes._GROOT_APPS_DIR", tmp_path / "groot_apps"), \
-         patch("groot.app_routes.importlib.import_module", return_value=_mock_loader()):
+    with patch("sage_cloud.app_routes._SAGE_CLOUD_APPS_DIR", tmp_path / "sage_cloud_apps"), \
+         patch("sage_cloud.app_routes.importlib.import_module", return_value=_mock_loader()):
         _upload(client_no_apps, zip_bytes)
         resp = client_no_apps.get("/api/apps")
     names = [a["name"] for a in resp.json()["apps"]]
@@ -189,8 +189,8 @@ def test_import_app_appears_in_list(client_no_apps, tmp_path):
 
 def test_import_app_status_is_loaded(client_no_apps, tmp_path):
     zip_bytes = _minimal_app_zip("statusapp")
-    with patch("groot.app_routes._GROOT_APPS_DIR", tmp_path / "groot_apps"), \
-         patch("groot.app_routes.importlib.import_module", return_value=_mock_loader()):
+    with patch("sage_cloud.app_routes._SAGE_CLOUD_APPS_DIR", tmp_path / "sage_cloud_apps"), \
+         patch("sage_cloud.app_routes.importlib.import_module", return_value=_mock_loader()):
         _upload(client_no_apps, zip_bytes)
         resp = client_no_apps.get("/api/apps")
     apps = {a["name"]: a for a in resp.json()["apps"]}
@@ -199,11 +199,11 @@ def test_import_app_status_is_loaded(client_no_apps, tmp_path):
 
 def test_import_extracts_files_to_disk(client_no_apps, tmp_path):
     zip_bytes = _minimal_app_zip("diskapp")
-    fake_groot_apps = tmp_path / "groot_apps"
-    with patch("groot.app_routes._GROOT_APPS_DIR", fake_groot_apps):
+    fake_sage_cloud_apps = tmp_path / "sage_cloud_apps"
+    with patch("sage_cloud.app_routes._SAGE_CLOUD_APPS_DIR", fake_sage_cloud_apps):
         _upload(client_no_apps, zip_bytes)
-    assert (fake_groot_apps / "diskapp" / "__init__.py").exists()
-    assert (fake_groot_apps / "diskapp" / "loader.py").exists()
+    assert (fake_sage_cloud_apps / "diskapp" / "__init__.py").exists()
+    assert (fake_sage_cloud_apps / "diskapp" / "loader.py").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -227,7 +227,7 @@ def test_import_rejects_oversized_file(client_no_apps):
 
 def test_import_loader_missing_returns_422(client_no_apps, tmp_path):
     zip_bytes = _make_zip({"noloader/__init__.py": ""})
-    with patch("groot.app_routes._GROOT_APPS_DIR", tmp_path / "groot_apps"):
+    with patch("sage_cloud.app_routes._SAGE_CLOUD_APPS_DIR", tmp_path / "sage_cloud_apps"):
         resp = _upload(client_no_apps, zip_bytes)
     assert resp.status_code == 422
     assert "loader" in resp.json()["detail"].lower()

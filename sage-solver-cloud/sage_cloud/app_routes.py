@@ -1,4 +1,4 @@
-"""Groot app discovery routes — GET /api/apps, /api/apps/{name}, /api/apps/{name}/health, DELETE /api/apps/{name}, GET /api/apps/{name}/export, POST /api/apps/import."""
+"""Sage Cloud app discovery routes — GET /api/apps, /api/apps/{name}, /api/apps/{name}/health, DELETE /api/apps/{name}, GET /api/apps/{name}/export, POST /api/apps/import."""
 
 import importlib
 import io
@@ -14,15 +14,15 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 
-from groot.auth import AuthContext, verify_api_key
-from groot.models import AppDeleteResult, AppDetail, AppHealth, AppInfo, AppImportResult, AppsResponse, CoreInfo, PageMeta, ToolInfo
+from sage_cloud.auth import AuthContext, verify_api_key
+from sage_cloud.models import AppDeleteResult, AppDetail, AppHealth, AppInfo, AppImportResult, AppsResponse, CoreInfo, PageMeta, ToolInfo
 
-_GROOT_APPS_DIR = Path(__file__).parent.parent / "groot_apps"
+_SAGE_CLOUD_APPS_DIR = Path(__file__).parent.parent / "sage_cloud_apps"
 
 logger = logging.getLogger(__name__)
 
 _CORE_VERSION = "0.3.0"
-_BUILTIN_PAGES = {"groot-dashboard", "groot-artifacts"}
+_BUILTIN_PAGES = {"sage-dashboard", "sage-artifacts"}
 
 
 def get_app_routes() -> APIRouter:
@@ -183,10 +183,10 @@ def get_app_routes() -> APIRouter:
         # 4. Remove from loaded_apps registry
         del loaded_apps[name]
 
-        # 5. Remove app directory from groot_apps/ (only with force)
+        # 5. Remove app directory from "sage_cloud_apps/ (only with force)
         directory_removed = False
         if force:
-            app_dir = _GROOT_APPS_DIR / name
+            app_dir = _SAGE_CLOUD_APPS_DIR / name
             if app_dir.exists() and app_dir.is_dir():
                 shutil.rmtree(app_dir)
                 directory_removed = True
@@ -308,13 +308,13 @@ def get_app_routes() -> APIRouter:
                     if init_path not in names:
                         raise HTTPException(status_code=400, detail=f"ZIP must contain {init_path!r} to be a valid Python package.")
                     # Extract only app directory files
-                    dest_dir = _GROOT_APPS_DIR / app_name
+                    dest_dir = _SAGE_CLOUD_APPS_DIR / app_name
                     if dest_dir.exists():
                         shutil.rmtree(dest_dir)
                     dest_dir.mkdir(parents=True, exist_ok=True)
                     for zip_entry in names:
                         if zip_entry.startswith(f"{app_name}/"):
-                            zf.extract(zip_entry, _GROOT_APPS_DIR)
+                            zf.extract(zip_entry, _SAGE_CLOUD_APPS_DIR)
                     logger.info("Extracted app %r to %s", app_name, dest_dir)
 
                 else:
@@ -374,11 +374,11 @@ def get_app_routes() -> APIRouter:
                 init_path = f"{app_name}/__init__.py"
                 if init_path not in names:
                     raise HTTPException(status_code=400, detail=f"ZIP must contain {init_path!r} to be a valid Python package.")
-                dest_dir = _GROOT_APPS_DIR / app_name
+                dest_dir = _SAGE_CLOUD_APPS_DIR / app_name
                 if dest_dir.exists():
                     shutil.rmtree(dest_dir)
                 dest_dir.mkdir(parents=True, exist_ok=True)
-                zf.extractall(_GROOT_APPS_DIR)
+                zf.extractall(_SAGE_CLOUD_APPS_DIR)
                 logger.info("Extracted app %r to %s", app_name, dest_dir)
 
         # Hot-load for PATH A (module_app) and PATH D
@@ -390,7 +390,7 @@ def get_app_routes() -> APIRouter:
         page_server = request.app.state.page_server
         store = request.app.state.store
 
-        module_path = f"groot_apps.{app_name}.loader"
+        module_path = f"sage_cloud_apps.{app_name}.loader"
         try:
             if module_path in sys.modules:
                 module = importlib.reload(sys.modules[module_path])
@@ -447,7 +447,7 @@ def get_app_routes() -> APIRouter:
     ):
         """Export app module as a downloadable .zip archive.
 
-        Packages groot_apps/{name}/ into a ZIP. With ?include_data=true,
+        Packages "sage_cloud_apps/{name}/ into a ZIP. With ?include_data=true,
         also bundles the app's registered pages and blobs as JSON files.
         """
         loaded_apps: dict = getattr(request.app.state, "loaded_apps", {})
@@ -458,7 +458,7 @@ def get_app_routes() -> APIRouter:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
             # 1. Package the module directory
-            app_dir = _GROOT_APPS_DIR / name
+            app_dir = _SAGE_CLOUD_APPS_DIR / name
             if app_dir.exists() and app_dir.is_dir():
                 for file_path in app_dir.rglob("*"):
                     if file_path.is_file() and "__pycache__" not in file_path.parts:
@@ -487,7 +487,7 @@ def get_app_routes() -> APIRouter:
             entry = loaded_apps[name]
             app_meta = entry.get("meta", {})
             manifest = {
-                "groot_version": "0.3.0",
+                "sage_cloud_version": "0.3.0",
                 "exported_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "name": name,
                 "description": app_meta.get("description", ""),

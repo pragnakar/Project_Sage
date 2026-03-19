@@ -14,7 +14,7 @@ def test_root_returns_html(client):
 def test_root_contains_react_shell(client):
     resp = client.get("/")
     assert resp.status_code == 200
-    assert b"Groot" in resp.content
+    assert b"Sage Cloud" in resp.content
     assert b"react" in resp.content.lower()
 
 

@@ -1,4 +1,4 @@
-"""Groot FastAPI application — lifespan, tool routes, health check, app module loader."""
+"""Sage Cloud FastAPI application — lifespan, tool routes, health check, app module loader."""
 
 import importlib
 import logging
@@ -13,12 +13,12 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
-_SHELL_DIR = Path(__file__).parent.parent / "groot-shell"
+_SHELL_DIR = Path(__file__).parent / "sage_shell"
 
-from groot.artifact_store import ArtifactStore
-from groot.auth import AuthContext, verify_api_key
-from groot.config import Settings, get_settings
-from groot.models import (
+from sage_cloud.artifact_store import ArtifactStore
+from sage_cloud.auth import AuthContext, verify_api_key
+from sage_cloud.config import Settings, get_settings
+from sage_cloud.models import (
     AppBundle,
     AppBundleImportResult,
     AppPageMeta,
@@ -46,11 +46,11 @@ from groot.models import (
     UpsertPageRequest,
     WriteBlobRequest,
 )
-from groot.app_routes import get_app_routes
-from groot.builtin_pages import register_builtin_pages
-from groot.mcp_transport import mount_sse_transport
-from groot.page_server import PageServer
-from groot.tools import ToolRegistry, register_core_tools
+from sage_cloud.app_routes import get_app_routes
+from sage_cloud.builtin_pages import register_builtin_pages
+from sage_cloud.mcp_transport import mount_sse_transport
+from sage_cloud.page_server import PageServer
+from sage_cloud.tools import ToolRegistry, register_core_tools
 
 logger = logging.getLogger(__name__)
 
@@ -95,8 +95,8 @@ async def lifespan(app: FastAPI):
     settings: Settings = settings_fn()
 
     store = ArtifactStore(
-        db_path=settings.GROOT_DB_PATH,
-        artifact_dir=settings.GROOT_ARTIFACT_DIR,
+        db_path=settings.SAGE_CLOUD_DB_PATH,
+        artifact_dir=settings.SAGE_CLOUD_ARTIFACT_DIR,
     )
     await store.init_db()
 
@@ -110,19 +110,19 @@ async def lifespan(app: FastAPI):
     loaded_apps: dict = {}
     for app_name in settings.apps_list():
         try:
-            module = importlib.import_module(f"groot_apps.{app_name}.loader")
+            module = importlib.import_module(f"sage_cloud_apps.{app_name}.loader")
             await module.register(registry, page_server, store)
             loaded_apps[app_name] = {
                 "module": module,
                 "meta": getattr(module, "APP_META", {}),
                 "status": "loaded",
             }
-            logger.info("Loaded Groot app module: %s", app_name)
+            logger.info("Loaded Sage Cloud app module: %s", app_name)
         except ModuleNotFoundError:
-            logger.warning("Groot app module not found, skipping: %s", app_name)
+            logger.warning("Sage Cloud app module not found, skipping: %s", app_name)
         except Exception as e:
             loaded_apps[app_name] = {"status": "error", "error": str(e)}
-            logger.warning("Failed to load Groot app module %s: %s", app_name, e)
+            logger.warning("Failed to load Sage Cloud app module %s: %s", app_name, e)
 
     # Mount page server routes + app discovery routes (idempotent)
     _dynamic_paths = {
@@ -145,11 +145,11 @@ async def lifespan(app: FastAPI):
     app.state.loaded_apps = loaded_apps
     app.state.start_time = time.time()
 
-    logger.info("Groot runtime started. Apps: %s", settings.apps_list())
+    logger.info("Sage Cloud runtime started. Apps: %s", settings.apps_list())
 
     yield
 
-    logger.info("Groot runtime shutting down.")
+    logger.info("Sage Cloud runtime shutting down.")
 
 
 # ---------------------------------------------------------------------------
@@ -157,7 +157,7 @@ async def lifespan(app: FastAPI):
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="Groot Runtime",
+    title="Sage Cloud",
     version="0.3.0",
     lifespan=lifespan,
 )
@@ -218,10 +218,10 @@ async def get_config():
     """
     import os
     settings = get_settings()
-    host = settings.GROOT_HOST if settings.GROOT_HOST != "0.0.0.0" else "localhost"
-    port = settings.GROOT_PORT
-    keys = os.environ.get("GROOT_API_KEYS", "").strip()
-    api_key = keys.split(",")[0].strip() if keys else "groot_sk_dev_key_01"
+    host = settings.SAGE_CLOUD_HOST if settings.SAGE_CLOUD_HOST != "0.0.0.0" else "localhost"
+    port = settings.SAGE_CLOUD_PORT
+    keys = os.environ.get("SAGE_CLOUD_API_KEYS", "").strip()
+    api_key = keys.split(",")[0].strip() if keys else "sage_sk_dev_key_01"
     return {
         "api_key": api_key,
         "base_url": f"http://{host}:{port}",
@@ -569,8 +569,8 @@ async def import_app_bundle(
             await store.update_app_page(body.name, p.page, p.jsx_code)
 
     settings = get_settings()
-    host = settings.GROOT_HOST if settings.GROOT_HOST != "0.0.0.0" else "localhost"
-    url = f"http://{host}:{settings.GROOT_PORT}/apps/{body.name}/"
+    host = settings.SAGE_CLOUD_HOST if settings.SAGE_CLOUD_HOST != "0.0.0.0" else "localhost"
+    url = f"http://{host}:{settings.SAGE_CLOUD_PORT}/apps/{body.name}/"
     return AppBundleImportResult(name=body.name, pages_imported=len(body.pages), url=url)
 
 
@@ -583,7 +583,7 @@ async def read_blob_public(key: str, store: ArtifactStore = Depends(get_store)):
     """Return raw blob content with its stored Content-Type.
 
     Reads are unauthenticated — pages can fetch their own data without needing
-    /api/config. Writes still require X-Groot-Key.
+    /api/config. Writes still require X-Sage-Key.
     """
     try:
         blob = await store.read_blob(key)
@@ -705,4 +705,4 @@ async def tool_call(
 def main():
     import uvicorn
     settings = get_settings()
-    uvicorn.run("groot.server:app", host=settings.GROOT_HOST, port=settings.GROOT_PORT, reload=True)
+    uvicorn.run("sage_cloud.server:app", host=settings.SAGE_CLOUD_HOST, port=settings.SAGE_CLOUD_PORT, reload=True)

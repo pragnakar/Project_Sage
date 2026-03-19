@@ -1,7 +1,7 @@
 """Unit tests for ArtifactStore multi-page app methods."""
 
 import pytest
-from groot.artifact_store import ArtifactStore
+from sage_cloud.artifact_store import ArtifactStore
 
 
 @pytest.fixture

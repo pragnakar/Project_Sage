@@ -1,4 +1,4 @@
-"""Groot core tool registry and 12 built-in tool implementations."""
+"""Sage Cloud core tool registry and 12 built-in tool implementations."""
 
 import inspect
 import json
@@ -8,8 +8,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from groot.artifact_store import ArtifactStore
-from groot.models import (
+from sage_cloud.artifact_store import ArtifactStore
+from sage_cloud.models import (
     AppPageMeta,
     AppPageResult,
     AppResult,
@@ -17,7 +17,7 @@ from groot.models import (
     BlobData,
     BlobMeta,
     BlobResult,
-    GrootConfig,
+    SageCloudConfig,
     LogResult,
     PageMeta,
     PageResult,
@@ -65,7 +65,7 @@ def _build_parameters(fn) -> dict[str, Any]:
 
 
 class ToolRegistry:
-    """Registry for all Groot tools — core and domain-app tools."""
+    """Registry for all Sage Cloud tools — core and domain-app tools."""
 
     def __init__(self) -> None:
         self._tools: dict[str, ToolDefinition] = {}
@@ -218,7 +218,7 @@ async def log_event(store: ArtifactStore, message: str, level: str = "info", con
 
 
 async def get_system_state(store: ArtifactStore, uptime_seconds: float) -> SystemState:
-    """Return Groot runtime state: uptime, artifact counts, registered apps."""
+    """Return Sage Cloud runtime state: uptime, artifact counts, registered apps."""
     return await store.get_system_state(uptime_seconds)
 
 
@@ -227,21 +227,21 @@ async def list_artifacts(store: ArtifactStore) -> ArtifactSummary:
     return await store.list_artifacts()
 
 
-async def get_groot_config(store: ArtifactStore) -> GrootConfig:
-    """Return Groot's runtime connection info: API key, host, port, and URLs.
+async def get_sage_cloud_config(store: ArtifactStore) -> SageCloudConfig:
+    """Return Sage Cloud's runtime connection info: API key, host, port, and URLs.
 
     Use this to discover the API key and base URL needed for direct HTTP calls.
-    The api_key value goes in the X-Groot-Key header for authenticated endpoints.
+    The api_key value goes in the X-Sage-Key header for authenticated endpoints.
     """
     import os
-    from groot.config import get_settings
+    from sage_cloud.config import get_settings
     settings = get_settings()
-    host = settings.GROOT_HOST if settings.GROOT_HOST != "0.0.0.0" else "localhost"
-    port = settings.GROOT_PORT
+    host = settings.SAGE_CLOUD_HOST if settings.SAGE_CLOUD_HOST != "0.0.0.0" else "localhost"
+    port = settings.SAGE_CLOUD_PORT
     base_url = f"http://{host}:{port}"
-    keys = os.environ.get("GROOT_API_KEYS", "").strip()
-    api_key = keys.split(",")[0].strip() if keys else "groot_sk_dev_key_01"
-    return GrootConfig(
+    keys = os.environ.get("SAGE_CLOUD_API_KEYS", "").strip()
+    api_key = keys.split(",")[0].strip() if keys else "sage_sk_dev_key_01"
+    return SageCloudConfig(
         api_key=api_key,
         host=host,
         port=port,
@@ -294,7 +294,7 @@ def register_core_tools(registry: ToolRegistry, store: ArtifactStore) -> None:
         create_page, update_page, upsert_page, list_pages, delete_page,
         define_schema, get_schema, list_schemas,
         log_event, get_system_state, list_artifacts,
-        get_groot_config,
+        get_sage_cloud_config,
         create_app, create_app_page, update_app_page, list_app_pages,
     ]:
         registry.register(fn, namespace="core")

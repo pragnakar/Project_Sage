@@ -1,4 +1,4 @@
-"""Groot page server — dynamic route registration and JSX source delivery."""
+"""Sage Cloud page server — dynamic route registration and JSX source delivery."""
 
 import io
 import json as _json
@@ -11,8 +11,8 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 
-from groot.artifact_store import ArtifactStore
-from groot.models import PageMeta, PageResult
+from sage_cloud.artifact_store import ArtifactStore
+from sage_cloud.models import PageMeta, PageResult
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +104,7 @@ class PageServer:
                         except Exception:
                             pass
                 manifest = {
-                    "groot_version": "0.3.0",
+                    "sage_cloud_version": "0.3.0",
                     "exported_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                     "name": name,
                     "description": meta.description,

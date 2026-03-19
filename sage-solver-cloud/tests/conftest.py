@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for Groot tests."""
+"""Shared pytest fixtures for Sage Cloud tests."""
 
 import os
 import tempfile
@@ -6,21 +6,21 @@ import tempfile
 import pytest
 from fastapi.testclient import TestClient
 
-from groot.config import Settings, get_settings
-from groot.server import app
+from sage_cloud.config import Settings, get_settings
+from sage_cloud.server import app
 
-TEST_API_KEY = "groot_sk_test_key"
+TEST_API_KEY = "sage_sk_test_key"
 
 
 @pytest.fixture
 def test_settings(tmp_path):
     """Settings using a temp DB and test API key."""
     return Settings(
-        GROOT_API_KEYS=TEST_API_KEY,
-        GROOT_DB_PATH=str(tmp_path / "test.db"),
-        GROOT_ARTIFACT_DIR=str(tmp_path / "artifacts"),
-        GROOT_APPS="",  # no app modules in tests
-        GROOT_ENV="development",
+        SAGE_CLOUD_API_KEYS=TEST_API_KEY,
+        SAGE_CLOUD_DB_PATH=str(tmp_path / "test.db"),
+        SAGE_CLOUD_ARTIFACT_DIR=str(tmp_path / "artifacts"),
+        SAGE_CLOUD_APPS="",  # no app modules in tests
+        SAGE_CLOUD_ENV="development",
     )
 
 
@@ -35,4 +35,4 @@ def client(test_settings):
 
 @pytest.fixture
 def auth_headers():
-    return {"X-Groot-Key": TEST_API_KEY}
+    return {"X-Sage-Key": TEST_API_KEY}

@@ -1,9 +1,9 @@
-"""Tests for groot/models.py — instantiation, validation, and serialization."""
+"""Tests for sage_cloud/models.py — instantiation, validation, and serialization."""
 
 import pytest
 from pydantic import ValidationError
 
-from groot.models import (
+from sage_cloud.models import (
     ArtifactSummary,
     BlobData,
     BlobMeta,

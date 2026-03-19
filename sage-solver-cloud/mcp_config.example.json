@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "groot": {
+    "sage_cloud": {
       "command": "/absolute/path/to/python",
-      "args": ["-m", "groot", "--mcp-stdio", "--http"]
+      "args": ["-m", "sage_cloud", "--mcp-stdio", "--http"]
     }
   }
 }

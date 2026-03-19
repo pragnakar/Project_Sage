@@ -1,12 +1,12 @@
-# Building a Groot App Module
+# Building a Sage Cloud App Module
 
-Groot is domain-agnostic. The runtime provides storage, tools, transport (HTTP + MCP), auth, and a React shell. Domain-specific logic lives in app modules under `groot_apps/{name}/`. This guide is everything you need to build one.
+Sage Cloud is domain-agnostic. The runtime provides storage, tools, transport (HTTP + MCP), auth, and a React shell. Domain-specific logic lives in app modules under `"sage_cloud_apps/{name}/`. This guide is everything you need to build one.
 
 ---
 
-## What is a Groot App?
+## What is a Sage Cloud App?
 
-A Groot app is a Python package that registers domain-specific tools and React pages into the runtime at startup. Once registered:
+A Sage Cloud app is a Python package that registers domain-specific tools and React pages into the runtime at startup. Once registered:
 
 - Tools are callable via HTTP (`POST /api/tools/call`) and MCP
 - Pages are served by the shell at `#/apps/{name}`
@@ -21,7 +21,7 @@ The runtime never changes — your app provides the domain logic.
 **1. Create your app directory:**
 
 ```
-groot_apps/myapp/
+"sage_cloud_apps/myapp/
 ├── __init__.py
 ├── loader.py        ← required
 ├── tools.py
@@ -34,13 +34,13 @@ groot_apps/myapp/
 
 ```python
 from pathlib import Path
-from groot.artifact_store import ArtifactStore
-from groot.page_server import PageServer
-from groot.tools import ToolRegistry
-from groot_apps.myapp.tools import my_tool
+from sage_cloud.artifact_store import ArtifactStore
+from sage_cloud.page_server import PageServer
+from sage_cloud.tools import ToolRegistry
+from sage_cloud_apps.myapp.tools import my_tool
 
 APP_META = {
-    "description": "My Groot app",
+    "description": "My Sage Cloud app",
     "version": "0.1.0",
 }
 
@@ -62,15 +62,15 @@ async def health_check() -> dict:
 
 ```bash
 # .env
-GROOT_APPS=myapp
+SAGE_CLOUD_APPS=myapp
 ```
 
-Multiple apps: `GROOT_APPS=myapp,otherapp`
+Multiple apps: `SAGE_CLOUD_APPS=myapp,otherapp`
 
-**4. Start Groot:**
+**4. Start Sage Cloud:**
 
 ```bash
-python -m groot
+python -m sage_cloud
 ```
 
 **5. Verify:**
@@ -132,8 +132,8 @@ If not provided, the health endpoint returns `{"status": "healthy", "checks": {}
 ### Tool function signature
 
 ```python
-from groot.artifact_store import ArtifactStore
-from groot_apps.myapp.models import MyResult
+from sage_cloud.artifact_store import ArtifactStore
+from sage_cloud_apps.myapp.models import MyResult
 
 async def my_tool(store: ArtifactStore, param1: str, param2: int = 0) -> MyResult:
     """What this tool does — used as the MCP tool description."""
@@ -161,7 +161,7 @@ tool_registry.register(my_tool, namespace="myapp")
 
 ```bash
 POST /api/tools/call
-X-Groot-Key: your-key
+X-Sage-Key: your-key
 
 {"tool": "my_tool", "arguments": {"param1": "hello", "param2": 42}}
 ```
@@ -200,7 +200,7 @@ Pages are transformed and evaluated in the browser. Rules:
 
 - **No imports** — React is globally available as `React`
 - **Named `Page` component** — the shell looks for `function Page()` or wraps bare JSX
-- **Fetch data via Groot API** — use relative URLs, e.g. `fetch('/api/system/artifacts')`
+- **Fetch data via Sage Cloud API** — use relative URLs, e.g. `fetch('/api/system/artifacts')`
 - **Auth**: read-only endpoints (`/api/pages`, `/api/apps`, `/api/system/state`) are unauthenticated and work from the browser. Tool calls (`/api/tools/call`) require a key.
 
 ```jsx
@@ -216,7 +216,7 @@ function Page() {
 }
 ```
 
-**Color palette** (matches Groot shell):
+**Color palette** (matches Sage Cloud shell):
 
 ```js
 const colors = {
@@ -240,8 +240,8 @@ const colors = {
 
 ```python
 import pytest
-from groot.artifact_store import ArtifactStore
-from groot_apps.myapp.tools import my_tool
+from sage_cloud.artifact_store import ArtifactStore
+from sage_cloud_apps.myapp.tools import my_tool
 
 @pytest.fixture
 async def store(tmp_path):
@@ -256,19 +256,19 @@ async def test_my_tool(store):
 
 ### Integration test via HTTP
 
-Use the standard `client` fixture from `conftest.py` but override `GROOT_APPS`:
+Use the standard `client` fixture from `conftest.py` but override `SAGE_CLOUD_APPS`:
 
 ```python
-from groot.config import Settings, get_settings
-from groot.server import app
+from sage_cloud.config import Settings, get_settings
+from sage_cloud.server import app
 
 @pytest.fixture
 def myapp_client(tmp_path):
     settings = Settings(
-        GROOT_API_KEYS="test-key",
-        GROOT_DB_PATH=str(tmp_path / "t.db"),
-        GROOT_ARTIFACT_DIR=str(tmp_path),
-        GROOT_APPS="myapp",
+        SAGE_CLOUD_API_KEYS="test-key",
+        SAGE_CLOUD_DB_PATH=str(tmp_path / "t.db"),
+        SAGE_CLOUD_ARTIFACT_DIR=str(tmp_path),
+        SAGE_CLOUD_APPS="myapp",
     )
     app.dependency_overrides[get_settings] = lambda: settings
     with TestClient(app) as c:
@@ -279,7 +279,7 @@ def test_tool_via_http(myapp_client):
     resp = myapp_client.post(
         "/api/tools/call",
         json={"tool": "my_tool", "arguments": {"param1": "hello"}},
-        headers={"X-Groot-Key": "test-key"},
+        headers={"X-Sage-Key": "test-key"},
     )
     assert resp.status_code == 200
 ```
@@ -295,12 +295,12 @@ def test_app_is_discoverable(myapp_client):
 
 ---
 
-## Reference: `groot_apps/example/`
+## Reference: `"sage_cloud_apps/example/`
 
-A complete working example is in `groot_apps/example/`:
+A complete working example is in `"sage_cloud_apps/example/`:
 
 ```
-groot_apps/example/
+"sage_cloud_apps/example/
 ├── __init__.py
 ├── loader.py      — registers echo_tool + example-hello page
 ├── tools.py       — echo_tool(store, message) -> EchoResult
@@ -309,7 +309,7 @@ groot_apps/example/
     └── hello.jsx  — "Hello from Example App" page
 ```
 
-Enable with `GROOT_APPS=example` and verify:
+Enable with `SAGE_CLOUD_APPS=example` and verify:
 
 ```bash
 GET /api/apps/example
@@ -322,7 +322,7 @@ POST /api/tools/call
 
 ---
 
-## Groot API Reference (for pages)
+## Sage Cloud API Reference (for pages)
 
 | Endpoint | Auth | Description |
 |---|---|---|
@@ -334,7 +334,7 @@ POST /api/tools/call
 | `GET /api/apps/{name}` | No | App tools and pages |
 | `POST /api/tools/call` | Yes | Call any tool |
 
-In `development` mode with no `GROOT_API_KEYS` set, all endpoints allow unauthenticated access.
+In `development` mode with no `SAGE_CLOUD_API_KEYS` set, all endpoints allow unauthenticated access.
 
 ---
 

@@ -1,11 +1,11 @@
-"""Tests for groot/auth.py — API key validation, header/query param, dev bypass."""
+"""Tests for sage_cloud/auth.py — API key validation, header/query param, dev bypass."""
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from groot.auth import verify_api_key
-from groot.config import Settings, get_settings
+from sage_cloud.auth import verify_api_key
+from sage_cloud.config import Settings, get_settings
 
 
 def make_app(settings: Settings) -> FastAPI:
@@ -15,7 +15,7 @@ def make_app(settings: Settings) -> FastAPI:
 
     @app.get("/protected")
     async def protected(auth=pytest.approx(None)):
-        from groot.auth import verify_api_key
+        from sage_cloud.auth import verify_api_key
         from fastapi import Depends
         return {"ok": True}
 
@@ -25,7 +25,7 @@ def make_app(settings: Settings) -> FastAPI:
 def _app_with_key(key: str, env: str = "development") -> tuple[FastAPI, TestClient]:
     """Return a test FastAPI app + client configured with a single API key."""
     app = FastAPI()
-    settings = Settings(GROOT_API_KEYS=key, GROOT_ENV=env)
+    settings = Settings(SAGE_CLOUD_API_KEYS=key, SAGE_CLOUD_ENV=env)
     app.dependency_overrides[get_settings] = lambda: settings
 
     @app.get("/protected")
@@ -33,7 +33,7 @@ def _app_with_key(key: str, env: str = "development") -> tuple[FastAPI, TestClie
         pass
 
     from fastapi import Depends
-    from groot.auth import verify_api_key
+    from sage_cloud.auth import verify_api_key
 
     @app.get("/secure")
     async def secure(auth=Depends(verify_api_key)):
@@ -45,11 +45,11 @@ def _app_with_key(key: str, env: str = "development") -> tuple[FastAPI, TestClie
 def _app_no_keys(env: str = "development") -> tuple[FastAPI, TestClient]:
     """Return a test app with no API keys configured."""
     app = FastAPI()
-    settings = Settings(GROOT_API_KEYS="", GROOT_ENV=env)
+    settings = Settings(SAGE_CLOUD_API_KEYS="", SAGE_CLOUD_ENV=env)
     app.dependency_overrides[get_settings] = lambda: settings
 
     from fastapi import Depends
-    from groot.auth import verify_api_key
+    from sage_cloud.auth import verify_api_key
 
     @app.get("/secure")
     async def secure(auth=Depends(verify_api_key)):
@@ -63,37 +63,37 @@ def _app_no_keys(env: str = "development") -> tuple[FastAPI, TestClient]:
 # ---------------------------------------------------------------------------
 
 def test_valid_key_in_header():
-    _, client = _app_with_key("groot_sk_testkey")
-    resp = client.get("/secure", headers={"X-Groot-Key": "groot_sk_testkey"})
+    _, client = _app_with_key("sage_sk_testkey")
+    resp = client.get("/secure", headers={"X-Sage-Key": "sage_sk_testkey"})
     assert resp.status_code == 200
-    assert resp.json()["key"] == "groot_sk_testkey"
+    assert resp.json()["key"] == "sage_sk_testkey"
 
 
 def test_valid_key_in_query_param():
-    _, client = _app_with_key("groot_sk_testkey")
-    resp = client.get("/secure", params={"key": "groot_sk_testkey"})
+    _, client = _app_with_key("sage_sk_testkey")
+    resp = client.get("/secure", params={"key": "sage_sk_testkey"})
     assert resp.status_code == 200
-    assert resp.json()["key"] == "groot_sk_testkey"
+    assert resp.json()["key"] == "sage_sk_testkey"
 
 
 def test_header_takes_precedence_over_query_param():
-    _, client = _app_with_key("groot_sk_real")
+    _, client = _app_with_key("sage_sk_real")
     # header is valid, query param is wrong — header should win
     resp = client.get(
         "/secure",
-        headers={"X-Groot-Key": "groot_sk_real"},
-        params={"key": "groot_sk_wrong"},
+        headers={"X-Sage-Key": "sage_sk_real"},
+        params={"key": "sage_sk_wrong"},
     )
     assert resp.status_code == 200
 
 
 def test_multiple_valid_keys_all_accepted():
     app = FastAPI()
-    settings = Settings(GROOT_API_KEYS="key_one,key_two,key_three", GROOT_ENV="development")
+    settings = Settings(SAGE_CLOUD_API_KEYS="key_one,key_two,key_three", SAGE_CLOUD_ENV="development")
     app.dependency_overrides[get_settings] = lambda: settings
 
     from fastapi import Depends
-    from groot.auth import verify_api_key
+    from sage_cloud.auth import verify_api_key
 
     @app.get("/secure")
     async def secure(auth=Depends(verify_api_key)):
@@ -102,7 +102,7 @@ def test_multiple_valid_keys_all_accepted():
     client = TestClient(app, raise_server_exceptions=False)
 
     for k in ["key_one", "key_two", "key_three"]:
-        resp = client.get("/secure", headers={"X-Groot-Key": k})
+        resp = client.get("/secure", headers={"X-Sage-Key": k})
         assert resp.status_code == 200, f"Key {k!r} should be accepted"
 
 
@@ -111,7 +111,7 @@ def test_multiple_valid_keys_all_accepted():
 # ---------------------------------------------------------------------------
 
 def test_missing_key_returns_401():
-    _, client = _app_with_key("groot_sk_testkey")
+    _, client = _app_with_key("sage_sk_testkey")
     resp = client.get("/secure")
     assert resp.status_code == 401
     body = resp.json()
@@ -119,15 +119,15 @@ def test_missing_key_returns_401():
 
 
 def test_invalid_key_returns_403():
-    _, client = _app_with_key("groot_sk_real")
-    resp = client.get("/secure", headers={"X-Groot-Key": "groot_sk_wrong"})
+    _, client = _app_with_key("sage_sk_real")
+    resp = client.get("/secure", headers={"X-Sage-Key": "sage_sk_wrong"})
     assert resp.status_code == 403
     body = resp.json()
     assert body["detail"]["error"] == "forbidden"
 
 
 def test_error_response_is_tool_error_shape():
-    _, client = _app_with_key("groot_sk_real")
+    _, client = _app_with_key("sage_sk_real")
     resp = client.get("/secure")
     detail = resp.json()["detail"]
     assert "error" in detail

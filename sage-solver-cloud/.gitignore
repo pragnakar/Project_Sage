@@ -16,8 +16,8 @@ build/
 venv/
 env/
 
-# Groot runtime
-groot.db
+# Sage Cloud runtime
+sage-cloud.db
 artifacts/
 .env
 

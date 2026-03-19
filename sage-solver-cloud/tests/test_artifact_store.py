@@ -1,11 +1,11 @@
-"""Tests for groot/artifact_store.py — CRUD, edge cases, and system ops."""
+"""Tests for sage_cloud/artifact_store.py — CRUD, edge cases, and system ops."""
 
 import os
 import tempfile
 
 import pytest
 
-from groot.artifact_store import ArtifactStore
+from sage_cloud.artifact_store import ArtifactStore
 
 
 @pytest.fixture
@@ -61,7 +61,7 @@ async def test_list_blobs_all(store):
 
 async def test_list_blobs_prefix(store):
     await store.write_blob("sage/result.json", "{}", "application/json")
-    await store.write_blob("groot/state.txt", "ok", "text/plain")
+    await store.write_blob("sage_cloud/state.txt", "ok", "text/plain")
     blobs = await store.list_blobs("sage/")
     assert all(b.key.startswith("sage/") for b in blobs)
     assert len(blobs) == 1

@@ -1,9 +1,9 @@
 """Unit tests for the four new multi-page app tool functions."""
 
 import pytest
-from groot.artifact_store import ArtifactStore
-from groot.tools import create_app, create_app_page, list_app_pages, update_app_page
-from groot.models import AppPageMeta, AppPageResult, AppResult
+from sage_cloud.artifact_store import ArtifactStore
+from sage_cloud.tools import create_app, create_app_page, list_app_pages, update_app_page
+from sage_cloud.models import AppPageMeta, AppPageResult, AppResult
 
 
 @pytest.fixture
