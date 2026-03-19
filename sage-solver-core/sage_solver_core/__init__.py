@@ -9,4 +9,6 @@ __version__ = "0.1.0"
 __author__ = "Pragnakar Pedapenki"
 __email__ = "pragnakar@gmail.com"
 
-__all__ = ["__version__"]
+from sage_solver_core.classifier import ClassificationResult, classify
+
+__all__ = ["__version__", "classify", "ClassificationResult"]
