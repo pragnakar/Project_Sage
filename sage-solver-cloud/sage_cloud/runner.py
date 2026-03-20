@@ -127,7 +127,7 @@ class SolverRunner:
     async def _run_job(self, task_id: str, job: dict) -> None:
         """Execute a single job, supporting pause/resume and live progress."""
         pause_flag_path = str(PAUSE_FLAG_DIR / f"{task_id}.pause")
-        progress_queue: multiprocessing.Queue = multiprocessing.Queue()
+        progress_file = str(PAUSE_FLAG_DIR / f"{task_id}.progress.json")
 
         try:
             # Update status to running
@@ -141,14 +141,14 @@ class SolverRunner:
                 self._monitor_pause(task_id, pause_flag_path)
             )
             progress_monitor = asyncio.create_task(
-                self._monitor_progress(task_id, progress_queue)
+                self._monitor_progress(task_id, progress_file)
             )
 
             loop = asyncio.get_event_loop()
             try:
                 result = await loop.run_in_executor(
                     self._executor,
-                    partial(_solve_job, job, pause_flag_path, progress_queue),
+                    partial(_solve_job, job, pause_flag_path, progress_file),
                 )
             finally:
                 pause_monitor.cancel()
@@ -161,6 +161,12 @@ class SolverRunner:
                     await progress_monitor
                 except asyncio.CancelledError:
                     pass
+
+            # Clean up progress file
+            try:
+                Path(progress_file).unlink(missing_ok=True)
+            except Exception:
+                pass
 
             # Determine if this was a genuine pause
             pause_flag = Path(pause_flag_path)
@@ -247,37 +253,21 @@ class SolverRunner:
                     logger.warning("Could not create pause flag for %s: %s", task_id, exc)
                 break
 
-    async def _monitor_progress(
-        self, task_id: str, queue: multiprocessing.Queue
-    ) -> None:
-        """Drain the progress queue and write updates to the blob store.
+    async def _monitor_progress(self, task_id: str, progress_file: str) -> None:
+        """Read progress from a file written by the worker and update the blob.
 
-        BUG 2 FIX: Writes gap_pct, elapsed_seconds, best_bound, best_incumbent
-        to the job blob while the solve is running, so the dashboard progress
-        bar populates in real time.
+        The worker writes a JSON file at progress_file on each callback.
+        This coroutine reads it every 3s and propagates to the blob store
+        so the dashboard can poll live progress.
         """
-        loop = asyncio.get_event_loop()
         while True:
             await asyncio.sleep(3)
-            # Drain all pending items from the queue
-            latest = None
-            history_entries = []
-            while True:
-                try:
-                    item = await loop.run_in_executor(
-                        None, partial(queue.get_nowait)
-                    )
-                    latest = item
-                    bh = item.get("bound_history_entry")
-                    if bh:
-                        history_entries.append(bh)
-                except Exception:
-                    break
-
-            if latest is None:
+            try:
+                with open(progress_file) as f:
+                    latest = json.load(f)
+            except Exception:
                 continue
 
-            # Read current blob, update progress fields, write back
             try:
                 job = await self._read_blob(f"jobs/{task_id}")
                 if not job or job.get("status") != "running":
@@ -286,9 +276,14 @@ class SolverRunner:
                 job["elapsed_seconds"] = latest.get("elapsed_seconds", 0)
                 job["best_bound"] = _safe_float(latest.get("best_bound"))
                 job["best_incumbent"] = _safe_float(latest.get("best_incumbent"))
-                existing_history = job.get("bound_history", [])
-                existing_history.extend(_sanitize_history(history_entries))
-                job["bound_history"] = existing_history
+                bh_entry = latest.get("bound_history_entry")
+                if bh_entry:
+                    existing = job.get("bound_history", [])
+                    existing.append(
+                        [(_safe_float(v) if isinstance(v, float) else v) for v in bh_entry]
+                        if isinstance(bh_entry, list) else bh_entry
+                    )
+                    job["bound_history"] = existing
                 await self._write_blob(f"jobs/{task_id}", job)
                 await self._update_index(
                     task_id, "running",
@@ -337,14 +332,14 @@ class SolverRunner:
 def _solve_job(
     job: dict,
     pause_flag_path: str = "",
-    progress_queue: multiprocessing.Queue | None = None,
+    progress_file: str = "",
 ) -> dict:
     """Run a solver job in a separate process. Returns result dict.
 
     Args:
         job: Job dict with ``solver_input`` and optionally ``incumbent_solution``.
         pause_flag_path: Path to a temp file that signals pause.
-        progress_queue: Queue for sending progress updates back to the monitor.
+        progress_file: Path to a JSON file for writing live progress updates.
     """
     from sage_solver_core.models import SolverInput
     from sage_solver_core.solver import solve_with_callbacks
@@ -364,39 +359,35 @@ def _solve_job(
     bound_history: list[list] = []
     last_incumbent: dict = {}
 
+    def _write_progress(entry, update):
+        """Write latest progress to file for the monitor coroutine to read."""
+        if not progress_file:
+            return
+        try:
+            import json as _json
+            with open(progress_file, "w") as f:
+                _json.dump({
+                    "gap_pct": _safe_float(update.mip_gap * 100) if hasattr(update, "mip_gap") and update.mip_gap is not None else None,
+                    "elapsed_seconds": update.elapsed_seconds,
+                    "best_incumbent": _safe_float(update.primal_bound),
+                    "best_bound": _safe_float(update.dual_bound),
+                    "bound_history_entry": entry,
+                }, f)
+        except Exception:
+            pass
+
     def on_incumbent(update):  # type: ignore[no-untyped-def]
         nonlocal last_incumbent
         entry = [update.elapsed_seconds, update.dual_bound, update.primal_bound, "incumbent"]
         bound_history.append(entry)
         if hasattr(update, "solution") and update.solution:
             last_incumbent = update.solution
-        # BUG 2 FIX: Send progress to queue for live monitoring
-        if progress_queue:
-            try:
-                progress_queue.put_nowait({
-                    "gap_pct": _safe_float(update.mip_gap * 100) if hasattr(update, "mip_gap") and update.mip_gap is not None else None,
-                    "elapsed_seconds": update.elapsed_seconds,
-                    "best_incumbent": _safe_float(update.primal_bound),
-                    "best_bound": _safe_float(update.dual_bound),
-                    "bound_history_entry": entry,
-                })
-            except Exception:
-                pass
+        _write_progress(entry, update)
 
     def on_progress(update):  # type: ignore[no-untyped-def]
         entry = [update.elapsed_seconds, update.dual_bound, update.primal_bound, "progress"]
         bound_history.append(entry)
-        if progress_queue:
-            try:
-                progress_queue.put_nowait({
-                    "gap_pct": _safe_float(update.mip_gap * 100) if hasattr(update, "mip_gap") and update.mip_gap is not None else None,
-                    "elapsed_seconds": update.elapsed_seconds,
-                    "best_incumbent": _safe_float(update.primal_bound),
-                    "best_bound": _safe_float(update.dual_bound),
-                    "bound_history_entry": entry,
-                })
-            except Exception:
-                pass
+        _write_progress(entry, update)
 
     def check_pause() -> bool:
         return bool(pause_flag_path) and os.path.exists(pause_flag_path)
