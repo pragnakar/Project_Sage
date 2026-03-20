@@ -563,6 +563,18 @@ _SOLVE_OPTIMIZATION_SCHEMA: dict[str, Any] = {
             "items": {"type": "object"},
         },
         "planning_horizon_days": {"type": "integer"},
+        "max_consecutive_days": {
+            "type": "integer",
+            "description": "Maximum consecutive days a worker may be scheduled. Adds rolling-window constraints that make the problem significantly harder for the solver. Optional.",
+        },
+        "time_limit_seconds": {
+            "type": "number",
+            "description": "Solver wall-clock time limit in seconds. Optional.",
+        },
+        "mip_gap_tolerance": {
+            "type": "number",
+            "description": "Acceptable relative optimality gap (e.g. 0.01 = 1%). Optional.",
+        },
     },
 }
 

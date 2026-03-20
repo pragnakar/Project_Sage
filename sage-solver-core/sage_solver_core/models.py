@@ -627,6 +627,12 @@ class SchedulingModel(BaseModel):
     min_rest_hours: float | None = Field(
         default=8.0, ge=0, description="Minimum rest hours between shifts"
     )
+    time_limit_seconds: float | None = Field(
+        default=None, gt=0, description="Solver wall-clock limit (None = default 60s)"
+    )
+    mip_gap_tolerance: float | None = Field(
+        default=None, ge=0.0, le=1.0, description="Acceptable relative optimality gap"
+    )
 
     @field_validator("workers")
     @classmethod

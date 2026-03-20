@@ -590,8 +590,8 @@ def build_from_scheduling(model: SchedulingModel) -> SolverInput:
         constraint_rhs=constraint_rhs,
         objective_coefficients=obj_coeffs,
         objective_sense="minimize",
-        time_limit_seconds=60.0,
-        mip_gap_tolerance=0.0001,
+        time_limit_seconds=model.time_limit_seconds if model.time_limit_seconds is not None else 60.0,
+        mip_gap_tolerance=model.mip_gap_tolerance if model.mip_gap_tolerance is not None else 0.0001,
     )
 
 

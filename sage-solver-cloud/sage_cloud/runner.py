@@ -232,10 +232,19 @@ class SolverRunner:
 
         except Exception as exc:
             logger.error("Job %s failed: %s", task_id, exc, exc_info=True)
-            job["status"] = "failed"
-            job["explanation"] = f"Solver error: {exc}"
-            await self._write_blob(f"jobs/{task_id}", job)
-            await self._update_index(task_id, "failed")
+            exc_str = str(exc).lower()
+            # If the exception is from IIS computation on an infeasible problem,
+            # mark as infeasible rather than failed
+            if "infeasible" in exc_str or "iis" in exc_str:
+                job["status"] = "infeasible"
+                job["explanation"] = f"Problem is infeasible. IIS computation failed: {exc}"
+                await self._write_blob(f"jobs/{task_id}", job)
+                await self._update_index(task_id, "infeasible")
+            else:
+                job["status"] = "failed"
+                job["explanation"] = f"Solver error: {exc}"
+                await self._write_blob(f"jobs/{task_id}", job)
+                await self._update_index(task_id, "failed")
 
     async def _monitor_pause(self, task_id: str, pause_flag_path: str) -> None:
         """Watch the job blob for pause_requested and create the flag file."""
