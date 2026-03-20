@@ -15,6 +15,9 @@ pip install -e sage-solver-cloud/
 "$RUNTIME_PIP" install --quiet sage-solver-mcp/
 "$RUNTIME_PIP" install --quiet sage-solver-cloud/
 
+# Remove stale build artifacts that can shadow editable installs
+rm -rf sage-solver-core/build/ sage-solver-mcp/build/ sage-solver-cloud/build/
+
 echo ""
 echo "All three packages reinstalled."
 echo "  Dev venv:  $(which python) (editable)"
