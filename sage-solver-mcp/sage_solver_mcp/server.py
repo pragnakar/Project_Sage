@@ -115,42 +115,98 @@ server = Server(
 # ---------------------------------------------------------------------------
 
 
+def _refresh_cloud() -> bool:
+    """Re-discover sage-solver-cloud if the current URL is stale. Returns True if refreshed."""
+    try:
+        from sage_solver_mcp.cloud import find_cloud, invalidate_cache
+        invalidate_cache()
+        cloud = find_cloud()
+        if cloud is not None:
+            _state.cloud_url = cloud.url
+            _state.cloud_api_key = cloud.api_key
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def _cloud_post(path: str, body: dict) -> dict | None:
-    """POST to sage-solver-cloud, return JSON response or None."""
+    """POST to sage-solver-cloud, return JSON response or None on connection error.
+
+    For HTTP 4xx/5xx responses, returns the error body as a dict.
+    On connection failure, re-discovers cloud and retries once (BUG 4 FIX).
+    Timeout scales with payload size (BUG 3 FIX).
+    """
     if not _state.cloud_url:
         return None
+    import urllib.error
     import urllib.request
-    url = f"{_state.cloud_url}{path}"
-    headers = {"Content-Type": "application/json"}
-    if _state.cloud_api_key:
-        headers["X-Sage-Key"] = _state.cloud_api_key
-    req = urllib.request.Request(
-        url, data=json.dumps(body).encode(), headers=headers, method="POST"
-    )
-    try:
-        resp = urllib.request.urlopen(req, timeout=10)
-        return json.loads(resp.read())
-    except Exception as exc:
-        logger.warning("Cloud POST %s failed: %s", path, exc)
-        return None
+
+    encoded = json.dumps(body).encode()
+    # BUG 3 FIX: Scale timeout with payload size
+    timeout = max(60, len(encoded) // 500_000 * 10)
+
+    def _do_post() -> dict | None:
+        url = f"{_state.cloud_url}{path}"
+        headers = {"Content-Type": "application/json"}
+        if _state.cloud_api_key:
+            headers["X-Sage-Key"] = _state.cloud_api_key
+        req = urllib.request.Request(url, data=encoded, headers=headers, method="POST")
+        try:
+            resp = urllib.request.urlopen(req, timeout=timeout)
+            return json.loads(resp.read())
+        except urllib.error.HTTPError as http_err:
+            try:
+                error_body = json.loads(http_err.read())
+            except Exception:
+                error_body = {"error": f"HTTP {http_err.code}", "status_code": http_err.code}
+            logger.warning("Cloud POST %s → HTTP %d", path, http_err.code)
+            return error_body
+        except Exception as exc:
+            logger.warning("Cloud POST %s failed: %s", path, exc)
+            return None
+
+    result = _do_post()
+    # BUG 4 FIX: On connection failure, re-discover and retry once
+    if result is None and _refresh_cloud():
+        result = _do_post()
+    return result
 
 
 def _cloud_get(path: str) -> dict | None:
-    """GET from sage-solver-cloud, return JSON response or None."""
+    """GET from sage-solver-cloud, return JSON response or None on connection error.
+
+    On connection failure, re-discovers cloud and retries once (BUG 4 FIX).
+    """
     if not _state.cloud_url:
         return None
+    import urllib.error
     import urllib.request
-    url = f"{_state.cloud_url}{path}"
-    headers: dict[str, str] = {}
-    if _state.cloud_api_key:
-        headers["X-Sage-Key"] = _state.cloud_api_key
-    req = urllib.request.Request(url, headers=headers)
-    try:
-        resp = urllib.request.urlopen(req, timeout=10)
-        return json.loads(resp.read())
-    except Exception as exc:
-        logger.warning("Cloud GET %s failed: %s", path, exc)
-        return None
+
+    def _do_get() -> dict | None:
+        url = f"{_state.cloud_url}{path}"
+        headers: dict[str, str] = {}
+        if _state.cloud_api_key:
+            headers["X-Sage-Key"] = _state.cloud_api_key
+        req = urllib.request.Request(url, headers=headers)
+        try:
+            resp = urllib.request.urlopen(req, timeout=60)
+            return json.loads(resp.read())
+        except urllib.error.HTTPError as http_err:
+            try:
+                error_body = json.loads(http_err.read())
+            except Exception:
+                error_body = {"error": f"HTTP {http_err.code}", "status_code": http_err.code}
+            logger.warning("Cloud GET %s → HTTP %d", path, http_err.code)
+            return error_body
+        except Exception as exc:
+            logger.warning("Cloud GET %s failed: %s", path, exc)
+            return None
+
+    result = _do_get()
+    if result is None and _refresh_cloud():
+        result = _do_get()
+    return result
 
 
 def _cloud_patch(path: str, body: dict) -> dict | None:
@@ -166,7 +222,7 @@ def _cloud_patch(path: str, body: dict) -> dict | None:
         url, data=json.dumps(body).encode(), headers=headers, method="PATCH"
     )
     try:
-        resp = urllib.request.urlopen(req, timeout=10)
+        resp = urllib.request.urlopen(req, timeout=60)
         return json.loads(resp.read())
     except Exception as exc:
         logger.warning("Cloud PATCH %s failed: %s", path, exc)
@@ -1360,9 +1416,10 @@ async def _handle_suggest_relaxations(args: dict[str, Any]) -> list[types.TextCo
 async def _handle_sage_status(args: dict[str, Any]) -> list[types.TextContent]:
     lines = ["SAGE Platform Status", ""]
 
-    # Re-check discovery for up-to-date status
+    # Re-check discovery for up-to-date status (always invalidate cache)
     try:
-        from sage_solver_mcp.cloud import find_cloud
+        from sage_solver_mcp.cloud import find_cloud, invalidate_cache
+        invalidate_cache()
         cloud = find_cloud()
         if cloud is not None:
             _state.cloud_url = cloud.url
@@ -1409,12 +1466,26 @@ async def _handle_pause_job(args: dict[str, Any]) -> list[types.TextContent]:
     task_id = args["task_id"]
     result = _cloud_post(f"/api/jobs/{task_id}/pause", {})
     if result is None:
-        return _error_text("sage-solver-cloud is not running. Cannot pause jobs.")
-    if "error" in result:
-        return _error_text(f"Cannot pause: {result['error']}")
+        return _error_text(
+            "sage-solver-cloud is not reachable. Check that the server is running."
+        )
+    # 4xx/5xx: result has 'detail' or 'error'
+    if "detail" in result or "error" in result:
+        detail = result.get("detail") or result.get("error", "unknown error")
+        # Friendly message for common case: job already finished
+        if isinstance(detail, dict):
+            detail = detail.get("detail", str(detail))
+        if "only running" in str(detail).lower() or "cannot pause" in str(detail).lower():
+            return _error_text(
+                f"Job {task_id} cannot be paused — it is not currently running.\n"
+                "Use get_job_progress to check the current status."
+            )
+        return _error_text(f"Cannot pause job {task_id}: {detail}")
     return _success_text(
         "pause_job",
-        f"Job {task_id} pause requested. The solver will stop at the next checkpoint.",
+        f"✓ Pause requested for job {task_id}.\n"
+        "The solver will stop at the next checkpoint and save the current best solution.\n"
+        "Use get_job_progress to confirm the job transitions to 'paused' status.",
     )
 
 
@@ -1424,15 +1495,28 @@ async def _handle_resume_job(args: dict[str, Any]) -> list[types.TextContent]:
     job = _cloud_get(f"/api/jobs/{task_id}")
     result = _cloud_post(f"/api/jobs/{task_id}/resume", {})
     if result is None:
-        return _error_text("sage-solver-cloud is not running. Cannot resume jobs.")
-    if "error" in result:
-        return _error_text(f"Cannot resume: {result['error']}")
+        return _error_text(
+            "sage-solver-cloud is not reachable. Check that the server is running."
+        )
+    if "detail" in result or "error" in result:
+        detail = result.get("detail") or result.get("error", "unknown error")
+        if isinstance(detail, dict):
+            detail = detail.get("detail", str(detail))
+        if "only paused" in str(detail).lower() or "cannot resume" in str(detail).lower():
+            status = job.get("status", "unknown") if job else "unknown"
+            return _error_text(
+                f"Job {task_id} cannot be resumed — current status is '{status}'.\n"
+                "Only paused jobs can be resumed."
+            )
+        return _error_text(f"Cannot resume job {task_id}: {detail}")
     gap_info = ""
-    if job and job.get("gap_pct"):
+    if isinstance(job, dict) and job.get("gap_pct") is not None:
         gap_info = f" (gap was {job['gap_pct']:.1f}%)"
     return _success_text(
         "resume_job",
-        f"Job {task_id} resumed{gap_info}. The solver will warm-start from the saved incumbent.",
+        f"✓ Job {task_id} resumed{gap_info}.\n"
+        "The solver will warm-start from the saved incumbent solution.\n"
+        "Use get_job_progress to monitor convergence.",
     )
 
 

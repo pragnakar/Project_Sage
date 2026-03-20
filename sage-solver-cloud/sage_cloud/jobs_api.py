@@ -63,6 +63,7 @@ class PauseResponse(BaseModel):
 class ResumeResponse(BaseModel):
     task_id: str
     status: str
+    warning: str | None = None
 
 
 class DeleteResponse(BaseModel):
@@ -380,11 +381,7 @@ async def resume_job(
             detail=f"Cannot resume job with status '{job.status}'. Only paused jobs can be resumed.",
         )
 
-    if job.incumbent_solution is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot resume without an incumbent solution.",
-        )
+    cold_restart = job.incumbent_solution is None
 
     job.status = "queued"
     job.pause_requested = False
@@ -399,7 +396,11 @@ async def resume_job(
             break
     await _write_index(store, index)
 
-    return ResumeResponse(task_id=task_id, status="queued")
+    return ResumeResponse(
+        task_id=task_id,
+        status="queued",
+        warning="No incumbent saved; resuming from scratch." if cold_restart else None,
+    )
 
 
 @router.patch("/{task_id}/complete", response_model=CompleteJobResponse)

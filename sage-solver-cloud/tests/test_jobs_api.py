@@ -345,8 +345,8 @@ def test_resume_paused_job(client, auth_headers):
 # 11. Resume without incumbent -> 400
 # ---------------------------------------------------------------------------
 
-def test_resume_without_incumbent_returns_400(client, auth_headers):
-    """Resume a paused job without incumbent_solution returns 400."""
+def test_resume_without_incumbent_cold_restarts(client, auth_headers):
+    """Resume a paused job without incumbent_solution succeeds with a warning."""
     r = _submit_job(client, auth_headers)
     task_id = r.json()["task_id"]
 
@@ -370,7 +370,11 @@ def test_resume_without_incumbent_returns_400(client, auth_headers):
     )
 
     resp = client.post(f"/api/jobs/{task_id}/resume", headers=auth_headers)
-    assert resp.status_code == 400
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "queued"
+    assert data["warning"] is not None
+    assert "from scratch" in data["warning"]
 
 
 # ---------------------------------------------------------------------------
