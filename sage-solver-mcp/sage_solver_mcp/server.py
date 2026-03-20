@@ -1484,7 +1484,7 @@ def main() -> None:
         cloud = find_cloud()
         if cloud is not None:
             _state.cloud_url = cloud.url
-            _state.cloud_api_key = None  # Discovery doesn't provide API key
+            _state.cloud_api_key = cloud.api_key
             _log(f"[SAGE] sage-solver-cloud discovered at {cloud.url} (v{cloud.version})")
             _log(f"[SAGE] Dashboard: {cloud.url}/")
         else:

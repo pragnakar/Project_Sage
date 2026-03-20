@@ -49,7 +49,7 @@ Update this table at the start and end of each session.
 
 **Active Phase:** Phase 2 — sage-solver-cloud integration (Stages 8-13 complete + bugfixes)
 **Active Branch:** main
-**Last Completed Task:** Bugfix session — 3 bugs from Cowork UI testing: (1) solves now register in jobs/ via POST+PATCH two-step, (2) /api/config returns actual bound port, (3) hint bar text fixed
+**Last Completed Task:** Bugfix — API key propagation through discovery file (cloud.json now includes api_key, CloudConnection carries it, MCP server uses it for auth)
 **Next Task:** Stage 14 (Notifications + ClickUp integration)
 **Blockers:** None
 **Test baseline:** 848 total (419 core + 122 MCP + 307 cloud)

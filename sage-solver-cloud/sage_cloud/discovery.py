@@ -80,12 +80,18 @@ def write_discovery_file(port: int, version: str = "0.3.0") -> None:
         except (json.JSONDecodeError, KeyError, TypeError):
             logger.info("Overwriting malformed discovery file")
 
+    # Get the API key from settings/environment
+    api_key = os.environ.get("SAGE_CLOUD_API_KEYS", "").strip()
+    if api_key:
+        api_key = api_key.split(",")[0].strip()
+
     data = {
         "url": f"http://localhost:{port}",
         "port": port,
         "pid": pid,
         "version": version,
         "started_at": datetime.now(timezone.utc).isoformat(),
+        "api_key": api_key or None,
     }
     DISCOVERY_FILE.write_text(json.dumps(data, indent=2))
     logger.info("Discovery file written: %s (port=%d, pid=%d)", DISCOVERY_FILE, port, pid)

@@ -24,6 +24,7 @@ class CloudConnection:
     url: str
     version: str
     port: int
+    api_key: str | None = None
 
 
 _cache: tuple[float, CloudConnection | None] = (0.0, None)
@@ -63,6 +64,7 @@ def _discover() -> CloudConnection | None:
                 url=url,
                 version=data.get("version", "unknown"),
                 port=data.get("port", 0),
+                api_key=data.get("api_key"),
             )
     except Exception as exc:
         logger.warning("sage-solver-cloud discovery failed: %s", exc)
