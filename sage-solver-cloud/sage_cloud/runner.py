@@ -74,6 +74,33 @@ def _sanitize_history(history: list) -> list:
     ]
 
 
+def _worker_init() -> None:
+    """Set sys.path so spawned workers can import sage_solver_core.
+
+    Spawned processes (mp_context='spawn') start with a clean interpreter.
+    sage-solver-core is a sibling package in the monorepo, not necessarily
+    pip-installed in the spawned worker's environment.
+    """
+    import sys
+    from pathlib import Path
+
+    # runner.py → sage_cloud/ → sage-solver-cloud/ → Project_Sage/
+    project_root = Path(__file__).resolve().parent.parent.parent
+    core_path = project_root / "sage-solver-core"
+    if core_path.exists():
+        path_str = str(core_path)
+        if path_str not in sys.path:
+            sys.path.insert(0, path_str)
+    else:
+        # Fallback: search parent directories
+        for p in Path(__file__).resolve().parents:
+            candidate = p / "sage-solver-core"
+            if candidate.exists():
+                if str(candidate) not in sys.path:
+                    sys.path.insert(0, str(candidate))
+                break
+
+
 class SolverRunner:
     """Background runner that polls for queued solver jobs and executes them.
 
@@ -90,6 +117,7 @@ class SolverRunner:
         self._executor = ProcessPoolExecutor(
             max_workers=max_workers,
             mp_context=multiprocessing.get_context("spawn"),
+            initializer=_worker_init,
         )
         self._running = False
 
