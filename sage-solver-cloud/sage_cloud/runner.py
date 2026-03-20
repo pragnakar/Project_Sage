@@ -21,10 +21,10 @@ for warm-start, and re-runs the solve.
 
 Progress Monitoring
 -------------------
-A multiprocessing.Queue is passed to the worker.  The on_incumbent and
-on_progress callbacks put progress dicts into the queue.  An async monitor
-coroutine drains the queue every 2-3s and writes the latest values to the
-job blob and index so the dashboard can poll them in real time.
+A progress JSON file path is passed to the worker. The worker writes progress
+updates to it on each HiGHS callback. An async monitor coroutine reads it
+every 3 seconds and writes the latest values to the blob store for dashboard
+polling.
 """
 
 from __future__ import annotations
@@ -33,10 +33,9 @@ import asyncio
 import json
 import logging
 import math
-import multiprocessing
 import os
 import tempfile
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from functools import partial
 from pathlib import Path
@@ -48,8 +47,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger("sage.runner")
 
 # ---------------------------------------------------------------------------
-# Pause flag directory — shared between the asyncio event loop and worker
-# processes via the filesystem.
+# Pause/progress flag directory — shared between the asyncio event loop and
+# worker threads via the filesystem.
 # ---------------------------------------------------------------------------
 PAUSE_FLAG_DIR = Path(tempfile.gettempdir()) / "sage_pause_flags"
 PAUSE_FLAG_DIR.mkdir(parents=True, exist_ok=True)
@@ -74,51 +73,21 @@ def _sanitize_history(history: list) -> list:
     ]
 
 
-def _worker_init() -> None:
-    """Set sys.path so spawned workers can import sage_solver_core.
-
-    Spawned processes (mp_context='spawn') start with a clean interpreter.
-    sage-solver-core is a sibling package in the monorepo, not necessarily
-    pip-installed in the spawned worker's environment.
-    """
-    import sys
-    from pathlib import Path
-
-    # runner.py → sage_cloud/ → sage-solver-cloud/ → Project_Sage/
-    project_root = Path(__file__).resolve().parent.parent.parent
-    core_path = project_root / "sage-solver-core"
-    if core_path.exists():
-        path_str = str(core_path)
-        if path_str not in sys.path:
-            sys.path.insert(0, path_str)
-    else:
-        # Fallback: search parent directories
-        for p in Path(__file__).resolve().parents:
-            candidate = p / "sage-solver-core"
-            if candidate.exists():
-                if str(candidate) not in sys.path:
-                    sys.path.insert(0, str(candidate))
-                break
-
-
 class SolverRunner:
     """Background runner that polls for queued solver jobs and executes them.
 
     Uses the ArtifactStore directly — no HTTP calls needed since the runner
     lives in the same process as the server.
 
-    BUG 1 FIX: Uses 'spawn' mp_context to avoid fork() corruption inside
-    uvicorn/asyncio.
+    Uses ThreadPoolExecutor: HiGHS is a C extension that releases the GIL
+    during h.run(), so the asyncio event loop stays responsive. No pickling,
+    no spawn/fork, no sys.path issues.
     """
 
     def __init__(self, store: "ArtifactStore", max_workers: int = 2) -> None:
         self.store = store
         self.max_workers = max_workers
-        self._executor = ProcessPoolExecutor(
-            max_workers=max_workers,
-            mp_context=multiprocessing.get_context("spawn"),
-            initializer=_worker_init,
-        )
+        self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._running = False
 
     async def start(self) -> None:
