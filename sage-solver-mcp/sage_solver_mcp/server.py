@@ -413,11 +413,17 @@ def _submit_to_cloud(
     """
     if not _state.cloud_url:
         return None
+    type_map = {
+        "LPModel": "LP",
+        "MIPModel": "MIP",
+        "PortfolioModel": "PORTFOLIO",
+        "SchedulingModel": "SCHEDULING",
+    }
     try:
         body = {
             "solver_input": si.model_dump(mode="json"),
             "problem_name": problem_name,
-            "model_type": type(model).__name__,
+            "problem_type": type_map.get(type(model).__name__, "MIP"),
         }
         return _cloud_post("/api/jobs", body)
     except Exception:

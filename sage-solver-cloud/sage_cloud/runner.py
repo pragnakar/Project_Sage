@@ -1,7 +1,8 @@
 """Sage Cloud — Background solver runner.
 
 Polls blob store for queued jobs, executes them using solve_with_callbacks,
-writes progress back to blobs.
+writes progress back to blobs. Runs as an asyncio task inside the server
+process, using the ArtifactStore directly (no HTTP round-trips).
 """
 
 from __future__ import annotations
@@ -9,25 +10,25 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import urllib.request
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sage_cloud.artifact_store import ArtifactStore
 
 logger = logging.getLogger("sage.runner")
 
 
 class SolverRunner:
-    """Background process that polls for queued solver jobs and executes them.
+    """Background runner that polls for queued solver jobs and executes them.
 
-    Args:
-        blob_url: Base URL of the blob store API.
-        api_key: Authentication key for blob store requests.
-        max_workers: Maximum concurrent solver processes.
+    Uses the ArtifactStore directly — no HTTP calls needed since the runner
+    lives in the same process as the server.
     """
 
-    def __init__(self, blob_url: str, api_key: str, max_workers: int = 2) -> None:
-        self.blob_url = blob_url
-        self.api_key = api_key
+    def __init__(self, store: ArtifactStore, max_workers: int = 2) -> None:
+        self.store = store
         self.max_workers = max_workers
         self._executor = ProcessPoolExecutor(max_workers=max_workers)
         self._running = False
@@ -35,9 +36,12 @@ class SolverRunner:
     async def start(self) -> None:
         """Start polling for queued jobs."""
         self._running = True
+        logger.info("SolverRunner started (max_workers=%d)", self.max_workers)
         while self._running:
             try:
                 await self._poll_and_run()
+            except asyncio.CancelledError:
+                break
             except Exception as exc:
                 logger.error("Runner poll error: %s", exc)
             await asyncio.sleep(2)
@@ -78,7 +82,9 @@ class SolverRunner:
             )
 
             # Update blob with results
-            job["status"] = "complete"
+            job["status"] = result.get("status", "complete")
+            if job["status"] == "optimal":
+                job["status"] = "complete"
             job["completed_at"] = datetime.now(timezone.utc).isoformat()
             job["solution"] = result.get("solution")
             job["explanation"] = result.get("explanation")
@@ -88,7 +94,7 @@ class SolverRunner:
             job["elapsed_seconds"] = result.get("elapsed_seconds", 0)
             job["bound_history"] = result.get("bound_history", [])
             await self._write_blob(f"jobs/{task_id}", job)
-            await self._update_index(task_id, "complete")
+            await self._update_index(task_id, job["status"])
 
         except Exception as exc:
             logger.error("Job %s failed: %s", task_id, exc)
@@ -98,46 +104,17 @@ class SolverRunner:
             await self._update_index(task_id, "failed")
 
     async def _read_blob(self, key: str) -> dict | None:
-        """Read a JSON blob from the blob store."""
+        """Read a JSON blob directly from the store."""
         try:
-            req = urllib.request.Request(
-                f"{self.blob_url}/api/tools/read_blob",
-                data=json.dumps({"key": key}).encode(),
-                headers={
-                    "Content-Type": "application/json",
-                    "X-Sage-Key": self.api_key,
-                },
-                method="POST",
-            )
-            resp = urllib.request.urlopen(req, timeout=5)
-            result = json.loads(resp.read())
-            if result.get("data"):
-                return (
-                    json.loads(result["data"])
-                    if isinstance(result["data"], str)
-                    else result["data"]
-                )
-        except Exception:
-            pass
-        return None
+            blob = await self.store.read_blob(key)
+            data = blob.data if hasattr(blob, "data") else blob
+            return json.loads(data) if isinstance(data, str) else data
+        except (KeyError, Exception):
+            return None
 
     async def _write_blob(self, key: str, data: dict) -> None:
-        """Write a JSON blob to the blob store."""
-        body = json.dumps({
-            "key": key,
-            "data": json.dumps(data),
-            "content_type": "application/json",
-        }).encode()
-        req = urllib.request.Request(
-            f"{self.blob_url}/api/tools/write_blob",
-            data=body,
-            headers={
-                "Content-Type": "application/json",
-                "X-Sage-Key": self.api_key,
-            },
-            method="POST",
-        )
-        urllib.request.urlopen(req, timeout=5)
+        """Write a JSON blob directly to the store."""
+        await self.store.write_blob(key, json.dumps(data), "application/json")
 
     async def _update_index(self, task_id: str, status: str) -> None:
         """Update a job's status in the jobs/index blob."""
@@ -157,16 +134,6 @@ def _solve_job(job: dict) -> dict:
 
     This is a module-level function so it can be pickled by
     :class:`ProcessPoolExecutor`.
-
-    Args:
-        job: Job dictionary containing a ``solver_input`` field with the
-            serialized :class:`SolverInput`.
-
-    Returns:
-        Dict with solution, bounds, gap, timing, and history.
-
-    Raises:
-        ValueError: If the job blob is missing the ``solver_input`` field.
     """
     from sage_solver_core.models import SolverInput
     from sage_solver_core.solver import solve_with_callbacks
@@ -202,6 +169,6 @@ def _solve_job(job: dict) -> dict:
         "gap_pct": result.gap * 100 if result.gap is not None else None,
         "elapsed_seconds": result.solve_time_seconds,
         "bound_history": bound_history,
-        "explanation": None,  # TODO: wire explainer when model is available
+        "explanation": None,
         "status": result.status,
     }

@@ -49,7 +49,7 @@ Update this table at the start and end of each session.
 
 **Active Phase:** Phase 2 — sage-solver-cloud integration (Stages 8-13 complete + bugfixes)
 **Active Branch:** main
-**Last Completed Task:** Bugfix — API key propagation through discovery file (cloud.json now includes api_key, CloudConnection carries it, MCP server uses it for auth)
+**Last Completed Task:** Bugfix — 3 runner bugs: SolverRunner now started in lifespan (uses store directly, no HTTP), _submit_to_cloud sends problem_type not model_type, runner tests updated for new constructor
 **Next Task:** Stage 14 (Notifications + ClickUp integration)
 **Blockers:** None
 **Test baseline:** 848 total (419 core + 122 MCP + 307 cloud)

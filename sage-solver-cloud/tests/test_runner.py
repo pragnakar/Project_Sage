@@ -98,22 +98,18 @@ class TestProcessPoolIsolation:
 
 class TestSolverRunnerInit:
     def test_init(self) -> None:
-        runner = SolverRunner(
-            blob_url="http://localhost:8080",
-            api_key="test-key",
-            max_workers=1,
-        )
-        assert runner.blob_url == "http://localhost:8080"
-        assert runner.api_key == "test-key"
+        from unittest.mock import MagicMock
+        mock_store = MagicMock()
+        runner = SolverRunner(store=mock_store, max_workers=1)
+        assert runner.store is mock_store
         assert runner.max_workers == 1
         assert runner._running is False
         runner.stop()
 
     def test_stop(self) -> None:
-        runner = SolverRunner(
-            blob_url="http://localhost:8080",
-            api_key="test-key",
-        )
+        from unittest.mock import MagicMock
+        mock_store = MagicMock()
+        runner = SolverRunner(store=mock_store)
         runner._running = True
         runner.stop()
         assert runner._running is False

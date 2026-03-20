@@ -1,5 +1,6 @@
 """Sage Cloud FastAPI application — lifespan, tool routes, health check, app module loader."""
 
+import asyncio
 import importlib
 import logging
 import time
@@ -147,11 +148,23 @@ async def lifespan(app: FastAPI):
     app.state.start_time = time.time()
     app.state.actual_port = None  # Set by __main__.py after port is bound
 
+    # Start background solver runner
+    from sage_cloud.runner import SolverRunner
+    runner = SolverRunner(store=store)
+    runner_task = asyncio.create_task(runner.start())
+    app.state.runner = runner
+
     logger.info("Sage Cloud runtime started. Apps: %s", settings.apps_list())
 
     yield
 
     logger.info("Sage Cloud runtime shutting down.")
+    runner.stop()
+    runner_task.cancel()
+    try:
+        await runner_task
+    except asyncio.CancelledError:
+        pass
 
 
 # ---------------------------------------------------------------------------
