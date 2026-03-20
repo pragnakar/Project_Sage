@@ -105,7 +105,12 @@ class SolverRunner:
             job["elapsed_seconds"] = result.get("elapsed_seconds", 0)
             job["bound_history"] = result.get("bound_history", [])
             await self._write_blob(f"jobs/{task_id}", job)
-            await self._update_index(task_id, job["status"])
+            await self._update_index(
+                task_id, job["status"],
+                best_incumbent=job.get("best_incumbent"),
+                elapsed_seconds=job.get("elapsed_seconds"),
+                gap_pct=job.get("gap_pct"),
+            )
 
         except Exception as exc:
             logger.error("Job %s failed: %s", task_id, exc)
@@ -127,8 +132,10 @@ class SolverRunner:
         """Write a JSON blob directly to the store."""
         await self.store.write_blob(key, json.dumps(data), "application/json")
 
-    async def _update_index(self, task_id: str, status: str) -> None:
-        """Update a job's status in the jobs/index blob."""
+    async def _update_index(
+        self, task_id: str, status: str, **extra: object
+    ) -> None:
+        """Update a job's status (and optional result fields) in the index blob."""
         index = await self._read_blob("jobs/index") or {
             "schema_version": "2.0",
             "jobs": [],
@@ -136,6 +143,8 @@ class SolverRunner:
         for entry in index["jobs"]:
             if entry["task_id"] == task_id:
                 entry["status"] = status
+                for k, v in extra.items():
+                    entry[k] = v
                 break
         await self._write_blob("jobs/index", index)
 

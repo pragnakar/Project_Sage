@@ -399,11 +399,14 @@ async def complete_job(
 
     await store.write_blob(f"jobs/{task_id}", json.dumps(job_data), "application/json")
 
-    # Update index
+    # Update index with result fields so the dashboard can show them without expanding
     index = await _read_index(store)
     for entry in index.jobs:
         if entry.task_id == task_id:
             entry.status = "complete"
+            entry.best_incumbent = job_data.get("best_incumbent")
+            entry.elapsed_seconds = body.elapsed_seconds
+            entry.gap_pct = job_data.get("gap_pct")
             break
     await _write_index(store, index)
 

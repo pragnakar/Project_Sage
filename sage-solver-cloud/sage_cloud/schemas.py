@@ -81,6 +81,9 @@ class SageJobIndexEntry(BaseModel):
     problem_name: str
     problem_type: str = ""
     complexity_tier: str = ""
+    best_incumbent: float | None = None
+    elapsed_seconds: float | None = None
+    gap_pct: float | None = None
 
 
 class SageJobIndex(BaseModel):

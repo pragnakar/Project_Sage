@@ -919,7 +919,7 @@ function Page() {
                     {job.status === 'complete' && job.best_incumbent != null && <span style={{ ...s.metaItem, color: colors.green }}>Obj: {typeof job.best_incumbent === 'number' ? job.best_incumbent.toLocaleString(undefined, {maximumFractionDigits:4}) : job.best_incumbent}{job.elapsed_seconds != null ? ' · ' + fmtElapsed(job.elapsed_seconds) : ''}</span>}
                     {job.status === 'running' && job.gap_pct != null && <span style={{ ...s.metaItem, color: colors.accent }}>Gap: {typeof job.gap_pct === 'number' ? job.gap_pct.toFixed(1) + '%' : job.gap_pct}</span>}
                     {(job.status === 'failed') && <span style={{ ...s.metaItem, color: '#f87171' }}>Error</span>}
-                    {(job.status === 'complete' && job.best_incumbent == null) && <span style={{ ...s.metaItem, color: '#fbbf24' }}>Infeasible</span>}
+                    {job.status === 'infeasible' && <span style={{ ...s.metaItem, color: '#fbbf24' }}>Infeasible</span>}
                   </div>
                   {/* Sparkline for bound history */}
                   {boundHistory.length >= 3 && (
