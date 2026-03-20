@@ -57,9 +57,10 @@ from sage_solver_core.builder import (
     build_from_scheduling,
 )
 from sage_solver_core.models import SAGEError
-from sage_solver_core.explainer import explain_infeasibility, explain_result
+from sage_solver_core.explainer import evaluate_assumed_constraints, explain_infeasibility, explain_result
 from sage_solver_core.fileio import dataframe_to_model, generate_template, read_data, read_data_from_bytes, write_results_excel
 from sage_solver_core.models import (
+    AssumedConstraint,
     IISResult,
     LPModel,
     MIPModel,
@@ -339,6 +340,8 @@ def _detect_model_type(data: dict[str, Any]) -> str:
 def _parse_model(data: dict[str, Any]) -> tuple[AnyModel, SolverInput]:
     """Parse a JSON dict into a typed model and build the SolverInput."""
     model_type = _detect_model_type(data)
+    # Extract assumed_constraints before passing to Pydantic model
+    raw_assumed = data.pop("assumed_constraints", None)
     # Remove meta-field before passing to Pydantic
     data = {k: v for k, v in data.items() if k != "problem_type"}
 
@@ -355,12 +358,21 @@ def _parse_model(data: dict[str, Any]) -> tuple[AnyModel, SolverInput]:
         model = LPModel.model_validate(data)
         si = build_from_lp(model)
 
+    # Wire assumed constraints into SolverInput
+    if raw_assumed:
+        assumed = [AssumedConstraint.model_validate(ac) for ac in raw_assumed]
+        si = si.model_copy(update={"assumed_constraints": assumed})
+
     return model, si
 
 
-def _format_solution_summary(result: SolverResult, model: AnyModel) -> str:
+def _format_solution_summary(
+    result: SolverResult,
+    model: AnyModel,
+    assumed_constraints: list[AssumedConstraint] | None = None,
+) -> str:
     """Return a concise solution summary with explanation."""
-    explanation = explain_result(result, model, "standard")
+    explanation = explain_result(result, model, "standard", assumed_constraints=assumed_constraints)
     lines = [explanation]
 
     if result.status == "optimal" and result.variable_values:
@@ -574,6 +586,17 @@ _SOLVE_OPTIMIZATION_SCHEMA: dict[str, Any] = {
         "mip_gap_tolerance": {
             "type": "number",
             "description": "Acceptable relative optimality gap (e.g. 0.01 = 1%). Optional.",
+        },
+        "assumed_constraints": {
+            "type": "array",
+            "description": (
+                "Assumptions about constraint values when exact data is unavailable. "
+                "Each item: {constraint_name, assumed_value, confidence (high/medium/low), "
+                "source (user_stated/historical_average/industry_benchmark/web_research/"
+                "regulatory_default/expert_estimate), rationale}. "
+                "Post-solve, SAGE flags assumptions that are fragile."
+            ),
+            "items": {"type": "object"},
         },
     },
 }
@@ -1120,6 +1143,12 @@ async def _handle_solve_optimization(args: dict[str, Any]) -> list[types.TextCon
 
     assert result is not None
 
+    # Post-solve: evaluate assumed constraints against sensitivity data
+    evaluated_ac: list[AssumedConstraint] | None = None
+    if si.assumed_constraints and result.status == "optimal":
+        evaluated_ac = evaluate_assumed_constraints(si.assumed_constraints, result)
+        result = result.model_copy(update={"assumed_constraints": evaluated_ac})
+
     _state.last_result = result
     _state.last_model = model
     _state.last_solver_input = si
@@ -1130,7 +1159,7 @@ async def _handle_solve_optimization(args: dict[str, Any]) -> list[types.TextCon
     if tier == "background" and _state.cloud_url is None:
         tier_note = "[tier: background, solved inline]"
 
-    summary = _format_solution_summary(result, model)
+    summary = _format_solution_summary(result, model, assumed_constraints=evaluated_ac)
     summary_with_tier = f"{tier_note}\n{summary}"
 
     if result.status == "optimal":
@@ -1299,7 +1328,11 @@ async def _handle_explain_solution(args: dict[str, Any]) -> list[types.TextConte
             "or provide a task_id of a completed cloud job."
         )
 
-    explanation = explain_result(_state.last_result, _state.last_model, detail_level)  # type: ignore[arg-type]
+    # Pass assumed constraints if available from last solve
+    ac = None
+    if _state.last_solver_input and _state.last_solver_input.assumed_constraints:
+        ac = _state.last_result.assumed_constraints or _state.last_solver_input.assumed_constraints
+    explanation = explain_result(_state.last_result, _state.last_model, detail_level, assumed_constraints=ac)  # type: ignore[arg-type]
     return _success_text("explain_solution", explanation)
 
 

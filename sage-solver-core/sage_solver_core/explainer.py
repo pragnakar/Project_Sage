@@ -19,11 +19,13 @@ import logging
 from typing import Literal
 
 from sage_solver_core.models import (
+    AssumedConstraint,
     IISResult,
     LPModel,
     MIPModel,
     PortfolioModel,
     SchedulingModel,
+    SolverInput,
     SolverResult,
 )
 
@@ -44,6 +46,7 @@ def explain_result(
     result: SolverResult,
     model: AnyModel,
     detail_level: Literal["brief", "standard", "detailed"] = "standard",
+    assumed_constraints: list[AssumedConstraint] | None = None,
 ) -> str:
     """Generate a natural language explanation of a solver result.
 
@@ -55,6 +58,9 @@ def explain_result(
             - "standard": Status, objective, top variables, binding constraints,
               one key insight.
             - "detailed": Standard plus full sensitivity narrative.
+        assumed_constraints: Optional list of assumed constraints. If provided,
+            they are evaluated against sensitivity data and included in the
+            narrative (standard and detailed levels).
 
     Returns:
         A plain-text string explanation (no Markdown).
@@ -96,13 +102,18 @@ def explain_result(
             "very small coefficients."
         )
 
+    # Evaluate assumed constraints if provided
+    evaluated_ac: list[AssumedConstraint] | None = None
+    if assumed_constraints and result.status == "optimal":
+        evaluated_ac = evaluate_assumed_constraints(assumed_constraints, result)
+
     # Status is "optimal" — generate the appropriate level of explanation
     if detail_level == "brief":
         return _brief(result, model, domain)
     elif detail_level == "standard":
-        return _standard(result, model, domain)
+        return _standard(result, model, domain, evaluated_ac)
     else:
-        return _detailed(result, model, domain)
+        return _detailed(result, model, domain, evaluated_ac)
 
 
 def explain_infeasibility(
@@ -181,7 +192,12 @@ def _brief(result: SolverResult, model: AnyModel, domain: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _standard(result: SolverResult, model: AnyModel, domain: str) -> str:
+def _standard(
+    result: SolverResult,
+    model: AnyModel,
+    domain: str,
+    assumed: list[AssumedConstraint] | None = None,
+) -> str:
     parts: list[str] = []
 
     # Header line (same as brief)
@@ -194,6 +210,12 @@ def _standard(result: SolverResult, model: AnyModel, domain: str) -> str:
     # Binding constraints
     if result.binding_constraints:
         parts.append(_binding_constraints_section(result, domain))
+
+    # Assumed constraints (flagged assumptions appear before key insight)
+    if assumed:
+        ac_narrative = _assumed_constraints_narrative(assumed, result)
+        if ac_narrative:
+            parts.append(ac_narrative)
 
     # Key insight
     insight = _key_insight(result, model, domain)
@@ -208,11 +230,16 @@ def _standard(result: SolverResult, model: AnyModel, domain: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _detailed(result: SolverResult, model: AnyModel, domain: str) -> str:
+def _detailed(
+    result: SolverResult,
+    model: AnyModel,
+    domain: str,
+    assumed: list[AssumedConstraint] | None = None,
+) -> str:
     parts: list[str] = []
 
-    # Start with standard
-    parts.append(_standard(result, model, domain))
+    # Start with standard (includes assumed constraints narrative)
+    parts.append(_standard(result, model, domain, assumed))
 
     # Sensitivity narrative
     sensitivity = _sensitivity_narrative(result, model, domain)
@@ -750,3 +777,172 @@ def _lookup_constraint_detail(cname: str, model: AnyModel) -> str:
                     terms += ", ..."
                 return f": {terms} {c.sense} {c.rhs}"
     return ""
+
+
+# ---------------------------------------------------------------------------
+# Assumed Constraints — evaluation and narration
+# ---------------------------------------------------------------------------
+
+
+def evaluate_assumed_constraints(
+    assumed: list[AssumedConstraint],
+    result: SolverResult,
+) -> list[AssumedConstraint]:
+    """Cross-reference assumed constraints against post-solve sensitivity data.
+
+    For each assumed constraint, determine whether the assumed RHS value falls
+    within the allowable range from sensitivity analysis. Also flag constraints
+    where the shadow price is high and confidence is low.
+
+    Args:
+        assumed: The list of assumed constraints from the solver input.
+        result: The solver result (must contain rhs_ranges and shadow_prices
+            for LP problems; MIP problems get flagged conservatively).
+
+    Returns:
+        A new list of AssumedConstraint objects with ``sensitivity_safe``
+        populated.  The original objects are not mutated.
+    """
+    evaluated: list[AssumedConstraint] = []
+    shadow_prices = result.shadow_prices or {}
+    rhs_ranges = result.rhs_ranges or {}
+
+    # Compute top-3 shadow prices by absolute value (for urgent flagging)
+    sorted_sp = sorted(shadow_prices.items(), key=lambda x: abs(x[1]), reverse=True)
+    top3_sp_names = {name for name, _ in sorted_sp[:3]} if sorted_sp else set()
+
+    for ac in assumed:
+        cname = ac.constraint_name
+        sp = shadow_prices.get(cname, 0.0)
+        rhs_range = rhs_ranges.get(cname)
+
+        # Start with the assumption that we can't determine safety
+        safe: bool | None = None
+
+        if rhs_range is not None:
+            lo, hi = rhs_range
+            within_range = True
+            if lo is not None and ac.assumed_value < lo - 1e-8:
+                within_range = False
+            if hi is not None and ac.assumed_value > hi + 1e-8:
+                within_range = False
+
+            if not within_range:
+                # Assumed value outside allowable range — always flag
+                safe = False
+            elif abs(sp) > 1e-8 and ac.confidence != "high":
+                # Shadow price > 0 AND confidence not high — flag
+                safe = False
+            elif cname in top3_sp_names and ac.confidence == "low":
+                # Top-3 shadow price AND low confidence — flag urgently
+                safe = False
+            else:
+                safe = True
+        else:
+            # No RHS range data (e.g., MIP) — flag conservatively
+            # if shadow price data is also absent
+            if abs(sp) > 1e-8 and ac.confidence != "high":
+                safe = False
+            elif ac.confidence == "low":
+                safe = False
+            # If we truly have no sensitivity data, leave as None
+
+        evaluated.append(
+            ac.model_copy(update={"sensitivity_safe": safe})
+        )
+
+    return evaluated
+
+
+def _assumed_constraints_narrative(
+    assumed: list[AssumedConstraint],
+    result: SolverResult,
+) -> str:
+    """Generate a narrative section about assumed constraints.
+
+    Safe assumptions get a brief mention. Unsafe ones get a loud warning
+    with shadow price context.
+
+    Args:
+        assumed: Already-evaluated assumed constraints (sensitivity_safe populated).
+        result: The solver result for shadow price context.
+
+    Returns:
+        A plain-text narrative section, or empty string if no assumptions.
+    """
+    if not assumed:
+        return ""
+
+    shadow_prices = result.shadow_prices or {}
+    rhs_ranges = result.rhs_ranges or {}
+
+    safe_lines: list[str] = []
+    flagged_lines: list[str] = []
+
+    for ac in assumed:
+        cname = ac.constraint_name
+        sp = shadow_prices.get(cname, 0.0)
+        rhs_range = rhs_ranges.get(cname)
+
+        source_label = ac.source.replace("_", " ")
+        conf_label = ac.confidence
+
+        if ac.sensitivity_safe is True:
+            # Brief, reassuring mention
+            range_str = ""
+            if rhs_range is not None:
+                lo, hi = rhs_range
+                lo_s = f"{lo:.4f}" if lo is not None else "-inf"
+                hi_s = f"{hi:.4f}" if hi is not None else "+inf"
+                range_str = (
+                    f" This is within the safe range — the optimal solution "
+                    f"holds for values between {lo_s} and {hi_s}."
+                )
+            safe_lines.append(
+                f"  {cname}: assumed at {ac.assumed_value:.4f} "
+                f"({conf_label} confidence, {source_label}). "
+                f"{ac.rationale}.{range_str}"
+            )
+        elif ac.sensitivity_safe is False:
+            # Loud warning
+            sp_context = ""
+            if abs(sp) > 1e-8:
+                sp_context = (
+                    f" The shadow price is {sp:+.4f} — meaning a 10% change "
+                    f"in this value would shift the objective by "
+                    f"{abs(sp * ac.assumed_value * 0.1):.4f}."
+                )
+            range_str = ""
+            if rhs_range is not None:
+                lo, hi = rhs_range
+                lo_s = f"{lo:.4f}" if lo is not None else "-inf"
+                hi_s = f"{hi:.4f}" if hi is not None else "+inf"
+                range_str = (
+                    f" Allowable range: [{lo_s}, {hi_s}]."
+                )
+            urgent = ""
+            if ac.confidence == "low":
+                urgent = " URGENT: Low confidence assumption on a sensitive constraint."
+            flagged_lines.append(
+                f"  {cname}: assumed at {ac.assumed_value:.4f} "
+                f"({conf_label} confidence, {source_label}). "
+                f"{ac.rationale}.{sp_context}{range_str}{urgent} "
+                f"Verify this estimate before acting."
+            )
+        else:
+            # Unknown safety (no sensitivity data)
+            safe_lines.append(
+                f"  {cname}: assumed at {ac.assumed_value:.4f} "
+                f"({conf_label} confidence, {source_label}). "
+                f"{ac.rationale}. Sensitivity data not available for this constraint."
+            )
+
+    parts: list[str] = ["Assumed constraints:"]
+    if flagged_lines:
+        parts.append("Flagged assumptions (verify before acting):")
+        parts.extend(flagged_lines)
+    if safe_lines:
+        parts.append("Safe assumptions (within allowable ranges):")
+        parts.extend(safe_lines)
+
+    return "\n".join(parts)

@@ -656,6 +656,58 @@ class SchedulingModel(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Assumed constraints
+# ---------------------------------------------------------------------------
+
+
+class AssumedConstraint(BaseModel):
+    """An assumption made about a constraint value when exact data is unavailable.
+
+    SAGE tracks assumed values and cross-references them against post-solve
+    sensitivity analysis. When an assumption is fragile (the optimal solution
+    would change if the assumption is wrong), SAGE flags it loudly.
+
+    Attributes:
+        constraint_name: Links to a named constraint (must match a
+            ``LinearConstraint.name`` in the model).
+        assumed_value: The RHS or coefficient value used in the solve.
+        confidence: How confident the source is in this value.
+        source: Where the assumed value came from.
+        rationale: Human-readable explanation of why this value was chosen.
+        actual_value: Populated later when the user provides the real data.
+        sensitivity_safe: Populated post-solve. True if the assumed value is
+            within the allowable range from sensitivity analysis.
+    """
+
+    constraint_name: str = Field(
+        ..., min_length=1, description="Links to a named constraint"
+    )
+    assumed_value: float = Field(
+        ..., description="RHS or coefficient value used"
+    )
+    confidence: Literal["high", "medium", "low"] = Field(
+        ..., description="Confidence in the assumed value"
+    )
+    source: Literal[
+        "user_stated",
+        "historical_average",
+        "industry_benchmark",
+        "web_research",
+        "regulatory_default",
+        "expert_estimate",
+    ] = Field(..., description="Origin of the assumed value")
+    rationale: str = Field(
+        ..., min_length=1, description="Why this value was chosen"
+    )
+    actual_value: float | None = Field(
+        default=None, description="Real value once known"
+    )
+    sensitivity_safe: bool | None = Field(
+        default=None, description="Post-solve: True if value is within allowable range"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Solver intermediate representation
 # ---------------------------------------------------------------------------
 
@@ -702,6 +754,10 @@ class SolverInput(BaseModel):
     mip_gap_tolerance: float | None = Field(default=0.0001, ge=0.0, le=1.0)
     initial_solution: dict[str, float] | None = Field(
         default=None, description="Warm-start solution: variable_name → value"
+    )
+    assumed_constraints: list[AssumedConstraint] | None = Field(
+        default=None,
+        description="Assumptions made about constraint values when exact data is unavailable",
     )
 
     @model_validator(mode="after")
@@ -870,6 +926,11 @@ class SolverResult(BaseModel):
     # Infeasibility analysis
     iis: IISResult | None = Field(
         default=None, description="IIS (populated when infeasible)"
+    )
+    # Assumed constraints (populated post-solve with sensitivity_safe flags)
+    assumed_constraints: list[AssumedConstraint] | None = Field(
+        default=None,
+        description="Assumptions about constraint values, flagged post-solve",
     )
 
     @model_validator(mode="after")
