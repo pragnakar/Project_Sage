@@ -656,8 +656,9 @@ function Page() {
     queued:   { bg: '#1e2a3a',  text: '#8b949e', label: 'Queued' },
     running:  { bg: '#172554',  text: '#60a5fa', label: 'Running' },
     paused:   { bg: '#2d2204',  text: '#fbbf24', label: 'Paused' },
-    complete: { bg: '#0d2a1f',  text: '#34d399', label: 'Complete' },
-    failed:   { bg: '#2a1015',  text: '#f87171', label: 'Failed' },
+    complete:   { bg: '#0d2a1f',  text: '#34d399', label: 'Complete' },
+    infeasible: { bg: '#2d2204',  text: '#fbbf24', label: 'Infeasible' },
+    failed:     { bg: '#2a1015',  text: '#f87171', label: 'Failed' },
     stalled:  { bg: '#2a1a05',  text: '#fb923c', label: 'Stalled' },
     deleted:  { bg: '#1a1a1a',  text: '#4a5568', label: 'Deleted' },
   };
@@ -667,7 +668,7 @@ function Page() {
   /* ------------------------------------------------------------------ */
   /* Filtering                                                           */
   /* ------------------------------------------------------------------ */
-  const statusTabs = ['all', 'running', 'paused', 'complete', 'failed'];
+  const statusTabs = ['all', 'running', 'paused', 'complete', 'infeasible', 'failed'];
   const typeTabs   = ['all', 'LP', 'MIP', 'Portfolio', 'Scheduling'];
 
   const visibleJobs = jobs.filter(j => {
@@ -984,7 +985,7 @@ function Page() {
                       )}
 
                       {/* Section C: Result */}
-                      {(detail.status === 'complete' || detail.status === 'failed' || detail.solution || detail.incumbent_solution) && (
+                      {(detail.status === 'complete' || detail.status === 'infeasible' || detail.status === 'failed' || detail.solution || detail.incumbent_solution) && (
                         <div style={s.detailSection}>
                           <div style={s.detailLabel}>Result</div>
                           {detail.best_incumbent != null && (
@@ -1022,7 +1023,7 @@ function Page() {
                               </table>
                             </div>
                           )}
-                          {detail.status === 'complete' && !detail.solution && detail.best_incumbent == null && (
+                          {detail.status === 'infeasible' && (
                             <div style={{ color: '#fbbf24', fontSize: '.85rem', marginTop: '.5rem' }}>
                               This problem has no feasible solution. The constraints cannot all be satisfied simultaneously.
                             </div>

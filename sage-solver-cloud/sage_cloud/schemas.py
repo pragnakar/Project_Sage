@@ -29,7 +29,7 @@ class SageJob(BaseModel):
     complexity_tier: Literal["instant", "fast", "background"]
     description: str | None = None
     status: Literal[
-        "queued", "running", "paused", "complete", "failed", "stalled", "deleted"
+        "queued", "running", "paused", "complete", "infeasible", "failed", "stalled", "deleted"
     ]
 
     # Timestamps
