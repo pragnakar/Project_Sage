@@ -153,6 +153,26 @@ def _cloud_get(path: str) -> dict | None:
         return None
 
 
+def _cloud_patch(path: str, body: dict) -> dict | None:
+    """PATCH to sage-solver-cloud, return JSON response or None."""
+    if not _state.cloud_url:
+        return None
+    import urllib.request
+    url = f"{_state.cloud_url}{path}"
+    headers = {"Content-Type": "application/json"}
+    if _state.cloud_api_key:
+        headers["X-Sage-Key"] = _state.cloud_api_key
+    req = urllib.request.Request(
+        url, data=json.dumps(body).encode(), headers=headers, method="PATCH"
+    )
+    try:
+        resp = urllib.request.urlopen(req, timeout=10)
+        return json.loads(resp.read())
+    except Exception as exc:
+        logger.warning("Cloud PATCH %s failed: %s", path, exc)
+        return None
+
+
 def _cloud_delete(path: str) -> dict | None:
     """DELETE on sage-solver-cloud."""
     if not _state.cloud_url:
@@ -331,35 +351,57 @@ def _solve_inline(
     return solve(si)
 
 
-def _persist_result_to_cloud(
+def _register_completed_job(
     result: SolverResult,
     model: AnyModel,
     si: SolverInput,
-    task_id: str,
-) -> None:
-    """Best-effort persist result blob to cloud for later retrieval."""
+    problem_name: str | None = None,
+) -> str | None:
+    """Register a completed solve as a job in sage-solver-cloud.
+
+    Two-step process:
+    1. POST /api/jobs — create the job record (status: queued)
+    2. PATCH /api/jobs/{task_id}/complete — mark complete with results
+
+    Returns the cloud-assigned task_id, or None if cloud is unavailable.
+    """
     if not _state.cloud_url:
-        return
+        return None
+
+    # Determine problem type string
+    model_type = type(model).__name__
+    type_map = {
+        "LPModel": "LP",
+        "MIPModel": "MIP",
+        "PortfolioModel": "PORTFOLIO",
+        "SchedulingModel": "SCHEDULING",
+    }
+    problem_type_str = type_map.get(model_type, "LP")
+
     try:
-        blob = {
-            "task_id": task_id,
-            "result": result.model_dump(mode="json"),
-            "model_type": type(model).__name__,
-            "solver_input_summary": {
-                "num_variables": si.num_variables,
-                "num_constraints": si.num_constraints,
-            },
-        }
-        _cloud_post(
-            "/api/tools/write_blob",
-            {
-                "key": f"results/{task_id}",
-                "data": json.dumps(blob),
-                "content_type": "application/json",
-            },
-        )
+        # Step 1: Create job record
+        create_resp = _cloud_post("/api/jobs", {
+            "solver_input": si.model_dump(mode="json"),
+            "problem_name": problem_name or getattr(model, "name", "unnamed"),
+            "problem_type": problem_type_str,
+        })
+        if not create_resp or "task_id" not in create_resp:
+            logger.debug("Failed to create job record in cloud")
+            return None
+
+        task_id = create_resp["task_id"]
+
+        # Step 2: Mark complete with results
+        _cloud_patch(f"/api/jobs/{task_id}/complete", {
+            "solver_result": result.model_dump(mode="json"),
+            "elapsed_seconds": result.solve_time_seconds or 0.0,
+            "explanation": None,
+        })
+
+        return task_id
     except Exception:
-        logger.debug("Failed to persist result to cloud", exc_info=True)
+        logger.debug("Failed to register completed job in cloud", exc_info=True)
+        return None
 
 
 def _submit_to_cloud(
@@ -978,10 +1020,10 @@ def _route_and_solve(
 
     # Solve inline (instant, fast, or background-without-cloud fallback)
     result = _solve_inline(si, model, tier)
-    _state.last_task_id = task_id
 
-    # Persist to cloud if available
-    _persist_result_to_cloud(result, model, si, task_id)
+    # Register completed job in cloud (two-step: create + complete)
+    cloud_task_id = _register_completed_job(result, model, si, problem_name)
+    _state.last_task_id = cloud_task_id or task_id
 
     tier_note = f"[tier: {tier}]"
     if tier == "background" and not cloud_available:
@@ -1140,10 +1182,9 @@ async def _handle_check_feasibility(args: dict[str, Any]) -> list[types.TextCont
     _state.last_solver_input = si
     _state.last_iis = result.iis if result.status == "infeasible" else None
 
-    # Persist to cloud if available
-    task_id = _generate_task_id()
-    _state.last_task_id = task_id
-    _persist_result_to_cloud(result, model, si, task_id)
+    # Register in cloud
+    cloud_task_id = _register_completed_job(result, model, si)
+    _state.last_task_id = cloud_task_id
 
     if result.status == "optimal":
         body = (

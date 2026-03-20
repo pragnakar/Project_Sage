@@ -69,6 +69,18 @@ class DeleteResponse(BaseModel):
     status: str
 
 
+class CompleteJobRequest(BaseModel):
+    """Body for PATCH /api/jobs/{task_id}/complete."""
+    solver_result: dict
+    elapsed_seconds: float = 0.0
+    explanation: str | None = None
+
+
+class CompleteJobResponse(BaseModel):
+    task_id: str
+    status: str
+
+
 class DeleteJobRequest(BaseModel):
     deleted_by: Literal["user_ui", "user_chat"] = "user_ui"
 
@@ -350,6 +362,52 @@ async def resume_job(
     await _write_index(store, index)
 
     return ResumeResponse(task_id=task_id, status="queued")
+
+
+@router.patch("/{task_id}/complete", response_model=CompleteJobResponse)
+async def complete_job(
+    task_id: str,
+    body: CompleteJobRequest,
+    request: Request,
+    auth: AuthContext = Depends(verify_api_key),
+):
+    """Mark a job as complete with solver results."""
+    store = _get_store(request)
+
+    # Read existing job blob (may have solver_input and other metadata)
+    try:
+        raw = await store.read_blob(f"jobs/{task_id}")
+        job_data = json.loads(raw.data)
+    except (KeyError, Exception):
+        raise HTTPException(status_code=404, detail=f"Job not found: {task_id}")
+
+    # Update with results
+    job_data["status"] = "complete"
+    job_data["completed_at"] = _now()
+    job_data["elapsed_seconds"] = body.elapsed_seconds
+    job_data["explanation"] = body.explanation
+
+    # Extract key fields from solver_result
+    sr = body.solver_result
+    job_data["solution"] = sr.get("variable_values")
+    job_data["best_bound"] = sr.get("bound")
+    job_data["best_incumbent"] = sr.get("objective_value")
+    if sr.get("gap") is not None:
+        job_data["gap_pct"] = sr["gap"] * 100
+    else:
+        job_data["gap_pct"] = 0.0
+
+    await store.write_blob(f"jobs/{task_id}", json.dumps(job_data), "application/json")
+
+    # Update index
+    index = await _read_index(store)
+    for entry in index.jobs:
+        if entry.task_id == task_id:
+            entry.status = "complete"
+            break
+    await _write_index(store, index)
+
+    return CompleteJobResponse(task_id=task_id, status="complete")
 
 
 @router.delete("/{task_id}", response_model=DeleteResponse)

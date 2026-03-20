@@ -1075,7 +1075,7 @@ function Page() {
 
       {/* Hint bar */}
       <div style={s.hintBar}>
-        In a new chat session, say <span style={{ fontFamily: 'monospace', color: colors.accent }}>check task {'{'}{'{'}task_id{'}'}{'}'}</span> and Claude will retrieve this job.
+        In a new chat session, say <span style={{ fontFamily: 'monospace', color: colors.accent }}>{'check task <task_id>'}</span> and Claude will retrieve this job.
         <span style={{ marginLeft: '1.5rem' }}>
           <label style={{ cursor: 'pointer', fontSize: '.75rem', color: colors.dimmed }}>
             <input type="checkbox" checked={showDeleted} onChange={e => setShowDeleted(e.target.checked)} style={{ marginRight: '.3rem' }} />

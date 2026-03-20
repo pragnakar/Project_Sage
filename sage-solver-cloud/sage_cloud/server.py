@@ -145,6 +145,7 @@ async def lifespan(app: FastAPI):
     app.state.page_server = page_server
     app.state.loaded_apps = loaded_apps
     app.state.start_time = time.time()
+    app.state.actual_port = None  # Set by __main__.py after port is bound
 
     logger.info("Sage Cloud runtime started. Apps: %s", settings.apps_list())
 
@@ -212,7 +213,7 @@ async def health():
 
 
 @app.get("/api/config")
-async def get_config():
+async def get_config(request: Request):
     """Return runtime connection info for the dashboard (no auth required).
 
     Exposes the API key so the browser dashboard can auto-populate the key
@@ -222,7 +223,8 @@ async def get_config():
     import os
     settings = get_settings()
     host = settings.SAGE_CLOUD_HOST if settings.SAGE_CLOUD_HOST != "0.0.0.0" else "localhost"
-    port = settings.SAGE_CLOUD_PORT
+    # Use actual bound port (set by __main__.py), fall back to settings
+    port = getattr(request.app.state, "actual_port", None) or settings.SAGE_CLOUD_PORT
     keys = os.environ.get("SAGE_CLOUD_API_KEYS", "").strip()
     api_key = keys.split(",")[0].strip() if keys else "sage_sk_dev_key_01"
     return {

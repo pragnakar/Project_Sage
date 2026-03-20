@@ -47,11 +47,12 @@ Update this table at the start and end of each session.
 
 ## Current Status
 
-**Active Phase:** Phase 2 — sage-solver-cloud integration
+**Active Phase:** Phase 2 — sage-solver-cloud integration (Stages 8-13 complete + bugfixes)
 **Active Branch:** main
-**Last Completed Task:** Session 14 — sage-solver-cloud (Groot fork) fully transformed, wired to sage-solver-mcp, landing page + job dashboard built, 484→591 total tests
-**Next Task:** Integration testing (Claude Desktop end-to-end), job blob write-back from sage-solver-mcp
+**Last Completed Task:** Bugfix session — 3 bugs from Cowork UI testing: (1) solves now register in jobs/ via POST+PATCH two-step, (2) /api/config returns actual bound port, (3) hint bar text fixed
+**Next Task:** Stage 14 (Notifications + ClickUp integration)
 **Blockers:** None
+**Test baseline:** 848 total (419 core + 122 MCP + 307 cloud)
 
 ---
 

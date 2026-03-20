@@ -121,6 +121,8 @@ def main():
                         actual_port = _get_bound_port(server)
                         write_discovery_file(actual_port)
                         register_cleanup()
+                        from sage_cloud.server import app as _app
+                        _app.state.actual_port = actual_port
                     except Exception as exc:
                         logger.warning("Failed to write discovery file: %s", exc)
 
@@ -164,6 +166,9 @@ def main():
                 actual_port = _get_bound_port(server)
                 write_discovery_file(actual_port)
                 register_cleanup()
+                # Set actual_port on the app state so /api/config returns the right URL
+                from sage_cloud.server import app as _app
+                _app.state.actual_port = actual_port
                 host_display = settings.SAGE_CLOUD_HOST if settings.SAGE_CLOUD_HOST != '0.0.0.0' else 'localhost'
                 print(f"\n  Sage Cloud v0.3.0")
                 print(f"  API Key : {api_key}")
