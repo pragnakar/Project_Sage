@@ -40,6 +40,7 @@
 | 12      | 2026-03-07 | Post-ship: MCP transport fix | Session 12 | — | v0.1.2/0.1.3 — MCP string deserialization fix (variables/constraints/objective as JSON strings), field aliases (lb/ub/expression/direction), explicit tool schemas; +11 core tests, +24 MCP tests; 470/470 total |
 | 13      | 2026-03-07 | Post-ship: docs & repo cleanup | Session 13 | — | README redraft (5 usage examples, uvx Quick Start), ROADMAP.md created, .build/ directory (AGENT.md, SAGE_SPEC.md, BUILD_LOG.md), template xlsx moved to examples/, 470/470 tests |
 | 14      | 2026-03-13 | Phase 2: sage-solver-cloud | Session 14 | — | Forked Project Groot via git subtree; full groot→sage-cloud rename (642 occurrences, 50 files); job blob schemas (SageJob, SageJobIndex, SageNotifications); Sage landing page + job dashboard; SAGE attribution in explainer; MCP status headers + retry/fallback chain; sage-solver-cloud auto-starts as subprocess from sage-solver-mcp; reinstall.sh dual-install (dev venv + anaconda runtime); Claude Desktop config updated; 591 total tests (393 core + 91 MCP + 260 cloud + 20 schemas + 14 fallback) |
+| 15      | 2026-03-20 | Stages 8-13 + 15 + bugfixes | Session 15 | — | Stage 8 (discovery file + JobBlob v2.0), Stage 9 (classifier), Stage 10 (HiGHS callbacks + runner), Stage 11 (Jobs REST API), Stage 12 (MCP cloud integration), Stage 13 (sage-jobs dashboard UI), Stage 15 (Assumed Constraints: AssumedConstraint model, evaluate_assumed_constraints, sensitivity flagging, narrative in explainer). ~30 bugfixes: job persistence (POST+PATCH), /api/config port=0, inf/NaN sanitization, explain_solution cloud fetch, dashboard auto-refresh, infeasible status, purge/orphan endpoints, runner ThreadPoolExecutor, simplex interrupt pause, HiGHS stdout suppression, stale build/lib cleanup, non-uniform scheduling objective. 868 total tests (439 core + 122 MCP + 307 cloud) |
 
 Update this table at the start and end of each session.
 
@@ -47,12 +48,12 @@ Update this table at the start and end of each session.
 
 ## Current Status
 
-**Active Phase:** Phase 2 — sage-solver-cloud integration (Stages 8-13 complete + bugfixes)
+**Active Phase:** Phase 2 — Stages 8-13 + 15 complete, ~30 bugfixes applied
 **Active Branch:** main
-**Last Completed Task:** Bugfix — 3 runner bugs: SolverRunner now started in lifespan (uses store directly, no HTTP), _submit_to_cloud sends problem_type not model_type, runner tests updated for new constructor
+**Last Completed Task:** Stage 15 (Assumed Constraints) + stale build/lib cleanup
 **Next Task:** Stage 14 (Notifications + ClickUp integration)
 **Blockers:** None
-**Test baseline:** 848 total (419 core + 122 MCP + 307 cloud)
+**Test baseline:** 868 total (439 core + 122 MCP + 307 cloud)
 
 ---
 
