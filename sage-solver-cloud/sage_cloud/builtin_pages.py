@@ -979,8 +979,13 @@ function Page() {
                   {!detail ? (
                     <div style={{ color: colors.muted, fontSize: '.85rem' }}>Loading details...</div>
                   ) : detail._error ? (
-                    <div style={{ color: '#f87171', fontSize: '.85rem' }}>
-                      Could not load details: {detail._error}
+                    <div>
+                      <div style={{ color: '#f87171', fontSize: '.85rem', marginBottom: '.75rem' }}>
+                        Could not load details: {detail._error}
+                      </div>
+                      <div style={{ display: 'flex', gap: '.5rem' }}>
+                        <button style={s.btn(colors.red)} onClick={() => setConfirmDelete(job.task_id)}>Delete</button>
+                      </div>
                     </div>
                   ) : (
                     <>

@@ -7,6 +7,7 @@ Uses the blob store as the database — no separate DB needed.
 from __future__ import annotations
 
 import json
+import re as _re
 import secrets
 import logging
 from datetime import datetime, timezone
@@ -297,9 +298,17 @@ async def get_job(
     store = _get_store(request)
     try:
         blob = await store.read_blob(f"jobs/{task_id}")
-        return json.loads(blob.data)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Job not found: {task_id}")
+    # Replace non-JSON-compliant float literals written by older runner versions
+    raw = blob.data
+    raw = _re.sub(r'-Infinity', 'null', raw)
+    raw = _re.sub(r'\bInfinity\b', 'null', raw)
+    raw = _re.sub(r'\bNaN\b', 'null', raw)
+    try:
+        return json.loads(raw)
+    except Exception:
+        raise HTTPException(status_code=422, detail=f"Job blob is malformed: {task_id}")
 
 
 @router.get("/{task_id}/progress", response_model=ProgressResponse)

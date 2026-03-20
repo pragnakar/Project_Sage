@@ -103,7 +103,11 @@ class SolverRunner:
             job["best_incumbent"] = _safe_float(result.get("best_incumbent"))
             job["gap_pct"] = _safe_float(result.get("gap_pct"))
             job["elapsed_seconds"] = result.get("elapsed_seconds", 0)
-            job["bound_history"] = result.get("bound_history", [])
+            job["bound_history"] = [
+                [(_safe_float(v) if isinstance(v, float) else v) for v in entry]
+                if isinstance(entry, list) else entry
+                for entry in result.get("bound_history", [])
+            ]
             await self._write_blob(f"jobs/{task_id}", job)
             await self._update_index(
                 task_id, job["status"],
