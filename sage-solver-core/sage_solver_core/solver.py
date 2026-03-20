@@ -172,7 +172,7 @@ def solve_with_callbacks(
 
     bound_history: list[list] = []
     last_progress_time = [0.0]
-    last_pause_check_time = [0.0]
+    last_pause_check_time = [time.monotonic()]
 
     def _callback(
         callback_type: int,
@@ -232,9 +232,9 @@ def solve_with_callbacks(
 
         elif int(callback_type) == int(_cb.kCallbackSimplexInterrupt):
             # Throttled pause check during LP/cutting-plane phases (every 0.5s)
-            elapsed = data_out.running_time
-            if elapsed - last_pause_check_time[0] >= 0.5:
-                last_pause_check_time[0] = elapsed
+            now = time.monotonic()
+            if now - last_pause_check_time[0] >= 0.5:
+                last_pause_check_time[0] = now
                 if check_pause and check_pause():
                     data_in.user_interrupt = True
 
