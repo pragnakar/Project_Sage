@@ -674,10 +674,13 @@ class TestBuildFromScheduling:
         assert inp.variable_upper_bounds[inp.variable_names.index("x_Junior_Admin_d0")] == pytest.approx(1.0)
         assert inp.variable_upper_bounds[inp.variable_names.index("x_Expert_Admin_d0")] == pytest.approx(1.0)
 
-    def test_objective_minimize_total_assignments(self) -> None:
+    def test_objective_minimize_weighted_labor_cost(self) -> None:
         inp = build_from_scheduling(_make_scheduling_3w2s())
         assert inp.objective_sense == "minimize"
-        assert all(c == pytest.approx(1.0) for c in inp.objective_coefficients)
+        # Non-uniform costs in [1.0, 2.0) — deterministic, varies by worker×shift
+        assert all(1.0 <= c < 2.0 for c in inp.objective_coefficients)
+        # Not all the same (non-trivial for MIP solver)
+        assert len(set(round(c, 4) for c in inp.objective_coefficients)) > 1
 
     def test_consecutive_days_constraints_present(self) -> None:
         """With max_consecutive_days=5 and 7-day horizon: 2 windows per worker."""
@@ -958,15 +961,16 @@ class TestIntegration:
         assert morning_coverage >= 1.0 - 1e-4, f"Morning coverage insufficient: {morning_coverage}"
         assert evening_coverage >= 1.0 - 1e-4, f"Evening coverage insufficient: {evening_coverage}"
 
-    def test_scheduling_build_and_solve_min_assignments(self) -> None:
-        """Minimisation objective: total assignments = sum of required workers."""
+    def test_scheduling_build_and_solve_min_cost(self) -> None:
+        """Minimisation objective: total weighted labor cost (non-uniform costs)."""
         model = _make_scheduling_3w2s()
         inp = build_from_scheduling(model)
         result = solve(inp)
 
         assert result.status == "optimal"
-        # Minimum possible: 1 Morning + 1 Evening = 2 assignments
-        assert result.objective_value == pytest.approx(2.0, abs=1e-4)
+        # 2 assignments needed (1 Morning + 1 Evening), costs in [1.0, 2.0)
+        # Total should be between 2.0 and 4.0
+        assert 2.0 <= result.objective_value < 4.0
 
     def test_scheduling_infeasible_too_few_workers(self) -> None:
         """1 worker, shift requiring 2: coverage constraint infeasible."""

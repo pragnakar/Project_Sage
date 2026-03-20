@@ -565,8 +565,16 @@ def build_from_scheduling(model: SchedulingModel) -> SolverInput:
                         row[_vidx(w, s, d)] = 1.0
                 _add(f"consec_{worker.name}_from_d{d_start}", row, "<=", float(mc * S))
 
-    # --- Objective: minimize total assignments --------------------------------
-    obj_coeffs = [1.0] * n
+    # --- Objective: minimize total weighted labor cost -------------------------
+    # Non-uniform costs in [1.00, 1.99] prevent presolve from trivializing the
+    # MIP and force genuine branch-and-bound, making large problems take
+    # realistic time (important for pause/resume and progress monitoring).
+    obj_coeffs = []
+    for w in range(W):
+        for s in range(S):
+            base_cost = 1.0 + ((w * 7 + s * 13) % 100) / 100.0
+            for d in range(D):
+                obj_coeffs.append(base_cost)
 
     m = len(constraint_names)
     logger.debug(
