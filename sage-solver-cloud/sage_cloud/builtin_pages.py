@@ -558,11 +558,12 @@ function Page() {
 
   const fetchJobDetail = (taskId) => {
     fetch('/api/jobs/' + encodeURIComponent(taskId), { headers: hdrs() })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data) setJobDetails(d => ({ ...d, [taskId]: data }));
+      .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
       })
-      .catch(() => {});
+      .then(data => setJobDetails(d => ({ ...d, [taskId]: data })))
+      .catch(e => setJobDetails(d => ({ ...d, [taskId]: { _error: e.message } })));
   };
 
   const fetchProgress = (taskId) => {
@@ -903,7 +904,7 @@ function Page() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '1.1rem' }}>{typeIcon(job.problem_type)}</span>
-                    <span style={{ fontSize: '.95rem', fontWeight: 600, color: colors.text }}>{job.problem_name || job.task_id}</span>
+                    <span style={{ fontSize: '.95rem', fontWeight: 600, color: colors.text }}>{(job.problem_name && !['SchedulingModel','LPModel','MIPModel','PortfolioModel'].includes(job.problem_name)) ? job.problem_name : job.task_id}</span>
                     <span style={s.badge(job.status)}>{sc(job.status).label}</span>
                   </div>
                   <div style={s.meta}>
@@ -915,6 +916,10 @@ function Page() {
                     </span>
                     {job.problem_type && <span style={s.metaItem}>{job.problem_type}</span>}
                     {job.complexity_tier && <span style={s.metaItem}>{job.complexity_tier}</span>}
+                    {job.status === 'complete' && job.best_incumbent != null && <span style={{ ...s.metaItem, color: colors.green }}>Obj: {typeof job.best_incumbent === 'number' ? job.best_incumbent.toLocaleString(undefined, {maximumFractionDigits:4}) : job.best_incumbent}{job.elapsed_seconds != null ? ' · ' + fmtElapsed(job.elapsed_seconds) : ''}</span>}
+                    {job.status === 'running' && job.gap_pct != null && <span style={{ ...s.metaItem, color: colors.accent }}>Gap: {typeof job.gap_pct === 'number' ? job.gap_pct.toFixed(1) + '%' : job.gap_pct}</span>}
+                    {(job.status === 'failed') && <span style={{ ...s.metaItem, color: '#f87171' }}>Error</span>}
+                    {(job.status === 'complete' && job.best_incumbent == null) && <span style={{ ...s.metaItem, color: '#fbbf24' }}>Infeasible</span>}
                   </div>
                   {/* Sparkline for bound history */}
                   {boundHistory.length >= 3 && (
@@ -939,29 +944,34 @@ function Page() {
                 <div style={s.detailPanel} onClick={e => e.stopPropagation()}>
                   {!detail ? (
                     <div style={{ color: colors.muted, fontSize: '.85rem' }}>Loading details...</div>
+                  ) : detail._error ? (
+                    <div style={{ color: '#f87171', fontSize: '.85rem' }}>
+                      Could not load details: {detail._error}
+                    </div>
                   ) : (
                     <>
-                      {/* Section A: Progress (running/paused) */}
-                      {(detail.status === 'running' || detail.status === 'paused' || job.status === 'running' || job.status === 'paused') && (
-                        <div style={s.detailSection}>
-                          <div style={s.detailLabel}>Progress</div>
-                          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '.85rem', color: colors.text, marginBottom: '.5rem' }}>
-                            {detail.gap_pct != null && <span>Gap: {detail.gap_pct.toFixed ? detail.gap_pct.toFixed(2) + '%' : detail.gap_pct}</span>}
-                            {detail.best_bound != null && <span>Best bound: {detail.best_bound}</span>}
-                            {detail.best_incumbent != null && <span>Incumbent: {detail.best_incumbent}</span>}
-                            {detail.node_count != null && <span>Nodes: {detail.node_count}</span>}
-                            {detail.elapsed_seconds != null && <span>Elapsed: {fmtElapsed(detail.elapsed_seconds)}</span>}
-                          </div>
-                          <div>
-                            {(detail.status === 'running' || job.status === 'running') && (
-                              <button style={s.btn(colors.yellow)} onClick={() => doPause(job.task_id)}>Pause</button>
-                            )}
-                            {(detail.status === 'paused' || job.status === 'paused') && (
-                              <button style={s.btn(colors.accent)} onClick={() => doResume(job.task_id)}>Resume</button>
-                            )}
-                          </div>
+                      {/* Section A: Summary / Progress — always shown when detail loaded */}
+                      <div style={s.detailSection}>
+                        <div style={s.detailLabel}>{['running','paused'].includes(detail.status || job.status) ? 'Progress' : 'Summary'}</div>
+                        <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '.85rem', color: colors.text, marginBottom: '.5rem' }}>
+                          {detail.gap_pct != null && <span>Gap: {detail.gap_pct.toFixed ? detail.gap_pct.toFixed(2) + '%' : detail.gap_pct}</span>}
+                          {detail.best_bound != null && <span>Best bound: {detail.best_bound}</span>}
+                          {detail.best_incumbent != null && <span>Objective: {detail.best_incumbent.toFixed ? detail.best_incumbent.toFixed(4) : detail.best_incumbent}</span>}
+                          {detail.node_count != null && <span>Nodes: {detail.node_count}</span>}
+                          {detail.elapsed_seconds != null && <span>Solved in: {fmtElapsed(detail.elapsed_seconds)}</span>}
+                          {detail.n_vars != null && <span>Variables: {detail.n_vars}</span>}
+                          {detail.n_constraints != null && <span>Constraints: {detail.n_constraints}</span>}
+                          {detail.created_at && <span>Created: {new Date(detail.created_at).toLocaleString()}</span>}
                         </div>
-                      )}
+                        <div>
+                          {(detail.status === 'running' || job.status === 'running') && (
+                            <button style={s.btn(colors.yellow)} onClick={() => doPause(job.task_id)}>Pause</button>
+                          )}
+                          {(detail.status === 'paused' || job.status === 'paused') && (
+                            <button style={s.btn(colors.accent)} onClick={() => doResume(job.task_id)}>Resume</button>
+                          )}
+                        </div>
+                      </div>
 
                       {/* Section B: Convergence chart */}
                       {chartReady && boundHistory.length > 3 && (
@@ -974,12 +984,12 @@ function Page() {
                       )}
 
                       {/* Section C: Result */}
-                      {(detail.status === 'complete' || detail.solution || detail.incumbent_solution) && (
+                      {(detail.status === 'complete' || detail.status === 'failed' || detail.solution || detail.incumbent_solution) && (
                         <div style={s.detailSection}>
                           <div style={s.detailLabel}>Result</div>
-                          {detail.solution && detail.solution.objective_value != null && (
+                          {detail.best_incumbent != null && (
                             <div style={{ fontSize: '.95rem', fontWeight: 600, color: colors.green, marginBottom: '.5rem' }}>
-                              Objective: {detail.solution.objective_value}
+                              Objective: {detail.best_incumbent.toFixed ? detail.best_incumbent.toFixed(4) : detail.best_incumbent}
                             </div>
                           )}
                           {detail.explanation && (
@@ -987,8 +997,8 @@ function Page() {
                               {detail.explanation}
                             </div>
                           )}
-                          {/* Top 20 variables */}
-                          {detail.solution && detail.solution.variable_values && (
+                          {/* Top 20 variables — detail.solution is flat {name: value} */}
+                          {detail.solution && typeof detail.solution === 'object' && Object.keys(detail.solution).length > 0 && (
                             <div style={{ maxHeight: 300, overflow: 'auto' }}>
                               <table style={s.varTable}>
                                 <thead>
@@ -998,7 +1008,7 @@ function Page() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {Object.entries(detail.solution.variable_values)
+                                  {Object.entries(detail.solution)
                                     .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
                                     .slice(0, 20)
                                     .map(([k, v]) => (
@@ -1010,6 +1020,16 @@ function Page() {
                                   }
                                 </tbody>
                               </table>
+                            </div>
+                          )}
+                          {detail.status === 'complete' && !detail.solution && detail.best_incumbent == null && (
+                            <div style={{ color: '#fbbf24', fontSize: '.85rem', marginTop: '.5rem' }}>
+                              This problem has no feasible solution. The constraints cannot all be satisfied simultaneously.
+                            </div>
+                          )}
+                          {detail.status === 'failed' && (
+                            <div style={{ color: '#f87171', fontSize: '.85rem', marginTop: '.5rem' }}>
+                              The solver encountered an error processing this job.{detail.explanation ? '' : ' No additional details available.'}
                             </div>
                           )}
                         </div>
@@ -1053,8 +1073,8 @@ function Page() {
                         </div>
                       </div>
 
-                      {/* Fallback for no data */}
-                      {!detail.solution && !detail.incumbent_solution && !detail.explanation && detail.status !== 'running' && detail.status !== 'paused' && detail.status !== 'complete' && (
+                      {/* Fallback for queued/stalled jobs with no data */}
+                      {!detail.solution && !detail.incumbent_solution && !detail.explanation && detail.best_incumbent == null && !['running','paused','complete','failed'].includes(detail.status) && (
                         <div style={{ color: colors.muted, fontSize: '.85rem' }}>No detailed output available yet.</div>
                       )}
                     </>
