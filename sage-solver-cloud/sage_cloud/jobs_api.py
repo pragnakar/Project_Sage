@@ -203,9 +203,14 @@ async def submit_job(
 
     now = _now()
 
+    # Auto-generate a descriptive problem name when none provided
+    problem_name = body.problem_name
+    if not problem_name or problem_name.strip() in ("unnamed", ""):
+        problem_name = f"{problem_type}-{n_vars}v-{n_constraints}c"
+
     job = SageJob(
         task_id=task_id,
-        problem_name=body.problem_name,
+        problem_name=problem_name,
         problem_type=problem_type,
         complexity_tier=complexity_tier,
         description=body.description,
@@ -229,7 +234,7 @@ async def submit_job(
         task_id=task_id,
         created_at=now,
         status="queued",
-        problem_name=body.problem_name,
+        problem_name=problem_name,
         problem_type=problem_type,
         complexity_tier=complexity_tier,
     ))
