@@ -1149,31 +1149,38 @@ async def _handle_solve_from_file(args: dict[str, Any]) -> list[types.TextConten
 
 async def _handle_explain_solution(args: dict[str, Any]) -> list[types.TextContent]:
     task_id = args.get("task_id") or _state.last_task_id
-
-    # Try fetching from cloud if task_id is available
-    if task_id and _state.cloud_url:
-        blob = _cloud_get(f"/blobs/results/{task_id}")
-        if blob and isinstance(blob, dict):
-            try:
-                result_data = blob.get("result", {})
-                result = SolverResult.model_validate(result_data)
-                detail_level = args.get("detail_level", "standard")
-                if detail_level not in ("brief", "standard", "detailed"):
-                    detail_level = "standard"
-                # For cloud results we need a model for explanation;
-                # fall through to local state if model unavailable
-            except Exception:
-                logger.debug("Failed to parse cloud result blob", exc_info=True)
-
-    # Fall back to local state
-    if _state.last_result is None or _state.last_model is None:
-        return _error_text(
-            "No solve result available. Run solve_optimization or solve_from_file first."
-        )
-
     detail_level = args.get("detail_level", "standard")
     if detail_level not in ("brief", "standard", "detailed"):
         detail_level = "standard"
+
+    # Try fetching from cloud job blob if task_id is known
+    if task_id and _state.cloud_url:
+        job = _cloud_get(f"/api/jobs/{task_id}")
+        if job and isinstance(job, dict) and job.get("status") in ("complete", "infeasible"):
+            try:
+                sr = SolverResult(
+                    status="optimal" if job.get("status") == "complete" else "infeasible",
+                    objective_value=job.get("best_incumbent"),
+                    variable_values=job.get("solution") or {},
+                    solve_time_seconds=job.get("elapsed_seconds", 0.0),
+                    gap=job.get("gap_pct", 0.0) / 100.0 if job.get("gap_pct") is not None else None,
+                    iis=None,
+                )
+                model = _state.last_model if _state.last_task_id == task_id else None
+                explanation = explain_result(sr, model, detail_level)  # type: ignore[arg-type]
+                return _success_text(
+                    "explain_solution",
+                    f"[job: {task_id}]\n{explanation}",
+                )
+            except Exception as exc:
+                logger.debug("Could not reconstruct SolverResult from cloud job: %s", exc)
+
+    # Fall back to in-session result
+    if _state.last_result is None:
+        return _error_text(
+            "No solve result available. Run solve_optimization or solve_from_file first, "
+            "or provide a task_id of a completed cloud job."
+        )
 
     explanation = explain_result(_state.last_result, _state.last_model, detail_level)  # type: ignore[arg-type]
     return _success_text("explain_solution", explanation)
