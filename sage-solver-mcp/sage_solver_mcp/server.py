@@ -1147,6 +1147,70 @@ async def _handle_solve_from_file(args: dict[str, Any]) -> list[types.TextConten
         return _success_text("solve_from_file", body)
 
 
+def _explain_cloud_job(job: dict, detail_level: str) -> str:
+    """Build a plain-English explanation directly from a stored cloud job dict.
+
+    Used when explain_solution is called with a task_id but no in-session model
+    is available. Avoids the explain_result() dependency on a model object.
+    """
+    status = job.get("status", "unknown")
+    name = job.get("problem_name", job.get("task_id", "unknown"))
+    problem_type = job.get("problem_type", "LP")
+    n_vars = job.get("n_vars", 0)
+    n_constraints = job.get("n_constraints", 0)
+    elapsed = job.get("elapsed_seconds", 0.0)
+    objective = job.get("best_incumbent")
+    gap_pct = job.get("gap_pct")
+    solution: dict = job.get("solution") or {}
+
+    lines: list[str] = []
+
+    if status == "infeasible":
+        lines.append(f"Problem '{name}' ({problem_type}) is INFEASIBLE.")
+        lines.append(
+            "No assignment of variables satisfies all constraints simultaneously. "
+            "Use suggest_relaxations to identify which constraints to loosen."
+        )
+        return "\n".join(lines)
+
+    # status == "complete" (optimal)
+    obj_str = f"{objective:,.4f}" if isinstance(objective, (int, float)) else str(objective)
+    elapsed_str = f"{elapsed*1000:.1f}ms" if elapsed and elapsed < 1 else f"{elapsed:.3f}s"
+
+    lines.append(f"Problem '{name}' ({problem_type}) — OPTIMAL SOLUTION FOUND")
+    lines.append(f"Objective value : {obj_str}")
+    lines.append(f"Solve time      : {elapsed_str}")
+    lines.append(f"Variables       : {n_vars}")
+    lines.append(f"Constraints     : {n_constraints}")
+    if gap_pct is not None:
+        lines.append(f"Optimality gap  : {gap_pct:.2f}%")
+
+    if solution and detail_level in ("standard", "detailed"):
+        lines.append("")
+        lines.append("Key variable values (top 10 by magnitude):")
+        top = sorted(
+            solution.items(),
+            key=lambda kv: abs(kv[1]) if isinstance(kv[1], (int, float)) else 0,
+            reverse=True,
+        )[:10]
+        for var, val in top:
+            val_str = f"{val:>12.4f}" if isinstance(val, (int, float)) else str(val)
+            lines.append(f"  {var:<35s} {val_str}")
+
+    if solution and detail_level == "detailed":
+        lines.append("")
+        lines.append("Full solution:")
+        for var, val in sorted(solution.items()):
+            val_str = f"{val:.6f}" if isinstance(val, (int, float)) else str(val)
+            lines.append(f"  {var:<35s} {val_str}")
+
+    lines.append("")
+    lines.append(
+        "SAGE found this solution using the HiGHS optimization engine."
+    )
+    return "\n".join(lines)
+
+
 async def _handle_explain_solution(args: dict[str, Any]) -> list[types.TextContent]:
     task_id = args.get("task_id") or _state.last_task_id
     detail_level = args.get("detail_level", "standard")
@@ -1157,23 +1221,8 @@ async def _handle_explain_solution(args: dict[str, Any]) -> list[types.TextConte
     if task_id and _state.cloud_url:
         job = _cloud_get(f"/api/jobs/{task_id}")
         if job and isinstance(job, dict) and job.get("status") in ("complete", "infeasible"):
-            try:
-                sr = SolverResult(
-                    status="optimal" if job.get("status") == "complete" else "infeasible",
-                    objective_value=job.get("best_incumbent"),
-                    variable_values=job.get("solution") or {},
-                    solve_time_seconds=job.get("elapsed_seconds", 0.0),
-                    gap=job.get("gap_pct", 0.0) / 100.0 if job.get("gap_pct") is not None else None,
-                    iis=None,
-                )
-                model = _state.last_model if _state.last_task_id == task_id else None
-                explanation = explain_result(sr, model, detail_level)  # type: ignore[arg-type]
-                return _success_text(
-                    "explain_solution",
-                    f"[job: {task_id}]\n{explanation}",
-                )
-            except Exception as exc:
-                logger.debug("Could not reconstruct SolverResult from cloud job: %s", exc)
+            explanation = _explain_cloud_job(job, detail_level)
+            return _success_text("explain_solution", f"[job: {task_id}]\n{explanation}")
 
     # Fall back to in-session result
     if _state.last_result is None:
