@@ -236,6 +236,15 @@ def solve_with_callbacks(
             if now - last_pause_check_time[0] >= 0.5:
                 last_pause_check_time[0] = now
                 if check_pause and check_pause():
+                    # user_interrupt alone doesn't stop a MIP — the MIP solver
+                    # treats a simplex interrupt as a normal LP completion and
+                    # starts the next LP. Shortening the time limit forces HiGHS
+                    # to stop at its next time-limit check (before every LP,
+                    # cut round, and B&B node).
+                    try:
+                        h.changeOptionValue("time_limit", data_out.running_time + 0.5)
+                    except Exception:
+                        pass
                     data_in.user_interrupt = True
 
     h.setCallback(_callback, None)
