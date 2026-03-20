@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
@@ -18,6 +19,16 @@ if TYPE_CHECKING:
     from sage_cloud.artifact_store import ArtifactStore
 
 logger = logging.getLogger("sage.runner")
+
+
+def _safe_float(val):
+    """Convert inf/nan to None for JSON-safe output."""
+    if val is None:
+        return None
+    try:
+        return val if math.isfinite(val) else None
+    except (TypeError, ValueError):
+        return None
 
 
 class SolverRunner:
@@ -88,9 +99,9 @@ class SolverRunner:
             job["completed_at"] = datetime.now(timezone.utc).isoformat()
             job["solution"] = result.get("solution")
             job["explanation"] = result.get("explanation")
-            job["best_bound"] = result.get("best_bound")
-            job["best_incumbent"] = result.get("best_incumbent")
-            job["gap_pct"] = result.get("gap_pct")
+            job["best_bound"] = _safe_float(result.get("best_bound"))
+            job["best_incumbent"] = _safe_float(result.get("best_incumbent"))
+            job["gap_pct"] = _safe_float(result.get("gap_pct"))
             job["elapsed_seconds"] = result.get("elapsed_seconds", 0)
             job["bound_history"] = result.get("bound_history", [])
             await self._write_blob(f"jobs/{task_id}", job)
@@ -164,9 +175,9 @@ def _solve_job(job: dict) -> dict:
 
     return {
         "solution": result.variable_values,
-        "best_bound": result.bound,
-        "best_incumbent": result.objective_value,
-        "gap_pct": result.gap * 100 if result.gap is not None else None,
+        "best_bound": _safe_float(result.bound),
+        "best_incumbent": _safe_float(result.objective_value),
+        "gap_pct": _safe_float(result.gap * 100) if result.gap is not None else None,
         "elapsed_seconds": result.solve_time_seconds,
         "bound_history": bound_history,
         "explanation": None,

@@ -614,17 +614,10 @@ function Page() {
       if (cfg && cfg.api_key) sessionStorage.setItem('sage_key', cfg.api_key);
       fetchJobs();
     }).catch(() => fetchJobs());
+    /* Always poll every 4s — catches new jobs, status changes, completions */
+    const timer = setInterval(() => { fetchJobs(); }, 4000);
+    return () => clearInterval(timer);
   }, []);
-
-  /* List polling: 5s if any running/queued, otherwise none */
-  React.useEffect(() => {
-    if (listPollRef.current) clearInterval(listPollRef.current);
-    const hasActive = jobs.some(j => j.status === 'running' || j.status === 'queued');
-    if (hasActive) {
-      listPollRef.current = setInterval(fetchJobs, 5000);
-    }
-    return () => { if (listPollRef.current) clearInterval(listPollRef.current); };
-  }, [jobs]);
 
   /* Progress polling for expanded job */
   React.useEffect(() => {
