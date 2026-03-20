@@ -4,6 +4,8 @@ Polls blob store for queued jobs, executes them using solve_with_callbacks,
 writes progress back to blobs. Runs as an asyncio task inside the server
 process, using the ArtifactStore directly (no HTTP round-trips).
 
+Fix applied 2026-03-20: traceback logging for failed jobs.
+
 Pause/Resume
 ------------
 Pause is implemented via a temp file flag.  The monitor coroutine watches the
@@ -231,7 +233,16 @@ class SolverRunner:
             )
 
         except Exception as exc:
-            logger.error("Job %s failed: %s", task_id, exc, exc_info=True)
+            import traceback as _tb
+            tb_str = _tb.format_exc()
+            logger.error("Job %s failed: %s\n%s", task_id, exc, tb_str)
+            # Write full traceback to a debug log file for diagnostics
+            try:
+                _log_path = Path(__file__).parent.parent.parent / "sage_runner_debug.log"
+                with open(_log_path, "a") as _lf:
+                    _lf.write(f"\n[{datetime.now(timezone.utc).isoformat()}] Job {task_id} FAILED:\n{tb_str}\n")
+            except Exception:
+                pass
             exc_str = str(exc).lower()
             # If the exception is from IIS computation on an infeasible problem,
             # mark as infeasible rather than failed
@@ -242,7 +253,7 @@ class SolverRunner:
                 await self._update_index(task_id, "infeasible")
             else:
                 job["status"] = "failed"
-                job["explanation"] = f"Solver error: {exc}"
+                job["explanation"] = f"Solver error: {exc}\n\nTraceback:\n{tb_str}"
                 await self._write_blob(f"jobs/{task_id}", job)
                 await self._update_index(task_id, "failed")
 

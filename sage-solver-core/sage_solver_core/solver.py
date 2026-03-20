@@ -4,6 +4,9 @@ All communication with HiGHS is encapsulated here.  No HiGHS objects are
 exposed to callers: input is always a ``SolverInput``, output is always a
 ``SolverResult`` or ``IISResult``.
 
+Fix applied 2026-03-20: _make_highs_silent suppresses HiGHS banner to
+prevent broken pipe in MCP stdio mode.
+
 Public API
 ----------
 solve(solver_input, solver="highs") -> SolverResult
@@ -13,10 +16,49 @@ compute_iis(solver_input) -> IISResult
 from __future__ import annotations
 
 import logging
+import os
+import threading
 import time
 from typing import TYPE_CHECKING, Callable
 
 import numpy as np
+
+# ---------------------------------------------------------------------------
+# Thread-safe stdout suppression for HiGHS banner
+# ---------------------------------------------------------------------------
+# HiGHS prints a startup banner to C-level fd 1 (stdout) the moment Highs()
+# is constructed — before any Python call to h.silent() can suppress it.
+# When the server is started in --mcp-stdio mode, fd 1 is the MCP JSON pipe;
+# the rogue banner corrupts the stream and causes [Errno 32] Broken pipe on
+# subsequent writes.  We redirect fd 1 → /dev/null for the duration of the
+# constructor under a lock (so two simultaneous threads don't cross-redirect).
+_highs_init_lock = threading.Lock()
+
+
+def _make_highs_silent():
+    """Create a highspy.Highs() instance without printing its startup banner.
+
+    Redirects C-level stdout/stderr to /dev/null around the constructor call
+    so the banner never reaches the MCP stdio pipe.  Uses a module-level lock
+    to serialise the fd manipulation across threads.
+    """
+    with _highs_init_lock:
+        devnull_fd = os.open(os.devnull, os.O_WRONLY)
+        saved_fd1 = os.dup(1)
+        saved_fd2 = os.dup(2)
+        try:
+            os.dup2(devnull_fd, 1)
+            os.dup2(devnull_fd, 2)
+            h = highspy.Highs()
+        finally:
+            os.dup2(saved_fd1, 1)
+            os.dup2(saved_fd2, 2)
+            os.close(saved_fd1)
+            os.close(saved_fd2)
+            os.close(devnull_fd)
+    h.silent()
+    h.setOptionValue("output_flag", False)
+    return h
 
 from sage_solver_core.models import (
     IISResult,
@@ -309,9 +351,7 @@ def _build_highs(inp: SolverInput) -> "highspy.Highs":
     Returns:
         A HiGHS instance ready to call ``run()``.
     """
-    h = highspy.Highs()
-    h.silent()
-    h.setOptionValue("output_flag", False)
+    h = _make_highs_silent()
 
     # ---- Parameters -------------------------------------------------------
     if inp.time_limit_seconds is not None:

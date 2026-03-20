@@ -2,6 +2,8 @@
 
 Full lifecycle: submit, list, get, progress, pause, resume, delete.
 Uses the blob store as the database — no separate DB needed.
+
+Fix applied 2026-03-20: pause/resume use raw blob to preserve solver_input.
 """
 
 from __future__ import annotations
@@ -347,18 +349,21 @@ async def pause_job(
 ):
     """Pause a running job."""
     store = _get_store(request)
-    job = await _read_job(store, task_id)
-    if job is None:
+    # Use raw blob to preserve solver_input (not a SageJob model field)
+    try:
+        raw = await store.read_blob(f"jobs/{task_id}")
+        job_data = json.loads(raw.data)
+    except (KeyError, Exception):
         raise HTTPException(status_code=404, detail=f"Job not found: {task_id}")
 
-    if job.status != "running":
+    if job_data.get("status") != "running":
         raise HTTPException(
             status_code=409,
-            detail=f"Cannot pause job with status '{job.status}'. Only running jobs can be paused.",
+            detail=f"Cannot pause job with status '{job_data.get('status')}'. Only running jobs can be paused.",
         )
 
-    job.pause_requested = True
-    await _write_job(store, job)
+    job_data["pause_requested"] = True
+    await store.write_blob(f"jobs/{task_id}", json.dumps(job_data), "application/json")
 
     return PauseResponse(task_id=task_id, pause_requested=True)
 
@@ -371,22 +376,31 @@ async def resume_job(
 ):
     """Resume a paused job."""
     store = _get_store(request)
-    job = await _read_job(store, task_id)
-    if job is None:
+    # Use raw blob to preserve solver_input (not a SageJob model field).
+    # _read_job / _write_job round-trips through the SageJob Pydantic model,
+    # which does not declare solver_input as a field — so it would be silently
+    # dropped on write, leaving the resumed job without its problem data.
+    try:
+        raw = await store.read_blob(f"jobs/{task_id}")
+        job_data = json.loads(raw.data)
+    except (KeyError, Exception):
         raise HTTPException(status_code=404, detail=f"Job not found: {task_id}")
 
-    if job.status != "paused":
+    if job_data.get("status") != "paused":
         raise HTTPException(
             status_code=409,
-            detail=f"Cannot resume job with status '{job.status}'. Only paused jobs can be resumed.",
+            detail=f"Cannot resume job with status '{job_data.get('status')}'. Only paused jobs can be resumed.",
         )
 
-    cold_restart = job.incumbent_solution is None
+    cold_restart = not job_data.get("incumbent_solution")
 
-    job.status = "queued"
-    job.pause_requested = False
-    job.bound_history.append(["resume"])
-    await _write_job(store, job)
+    job_data["status"] = "queued"
+    job_data["pause_requested"] = False
+    if "bound_history" not in job_data:
+        job_data["bound_history"] = []
+    job_data["bound_history"].append(["resume"])
+
+    await store.write_blob(f"jobs/{task_id}", json.dumps(job_data), "application/json")
 
     # Update index
     index = await _read_index(store)
