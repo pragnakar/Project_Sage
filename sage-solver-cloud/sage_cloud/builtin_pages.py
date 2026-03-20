@@ -1,4 +1,4 @@
-"""Sage Cloud built-in pages — landing page, artifact browser, job dashboard, and health page."""
+"""Sage Cloud built-in pages — landing page, artifact browser, and job dashboard."""
 
 import logging
 
@@ -24,15 +24,6 @@ function Page() {
   const [connected, setConnected] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [hoveredCard, setHoveredCard] = React.useState(null);
-  const [recentJobs, setRecentJobs] = React.useState([]);
-  const [quickStats, setQuickStats] = React.useState(null);
-  const [isNarrow, setIsNarrow] = React.useState(window.innerWidth < 640);
-
-  React.useEffect(() => {
-    const onResize = () => setIsNarrow(window.innerWidth < 640);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
 
   React.useEffect(() => {
     const key = sessionStorage.getItem('sage_key') || '';
@@ -44,26 +35,6 @@ function Page() {
       .then(r => { if (r.ok) { setConnected(true); return r.json(); } return null; })
       .then(d => { setStats(d); setLoading(false); })
       .catch(() => setLoading(false));
-
-    /* Fetch recent jobs for the feed and quick stats */
-    fetch('/api/config').then(r => r.ok ? r.json() : null).then(cfg => {
-      const apiKey = (cfg && cfg.api_key) ? cfg.api_key : '';
-      return fetch('/api/jobs', { headers: apiKey ? { 'X-Sage-Key': apiKey } : {} });
-    })
-      .then(r => r.ok ? r.json() : [])
-      .then(allJobs => {
-        setRecentJobs((allJobs || []).slice(0, 5));
-        /* Compute quick stats */
-        const today = new Date().toISOString().slice(0, 10);
-        const jobsToday = (allJobs || []).filter(j => (j.created_at || '').slice(0, 10) === today).length;
-        const completed = (allJobs || []).filter(j => j.status === 'complete');
-        const successRate = allJobs && allJobs.length > 0 ? Math.round((completed.length / allJobs.length) * 100) : 0;
-        const avgSolve = completed.length > 0
-          ? (completed.reduce((sum, j) => sum + (j.elapsed_seconds || 0), 0) / completed.length).toFixed(1)
-          : '0';
-        setQuickStats({ jobsToday, avgSolve, successRate });
-      })
-      .catch(() => {});
   }, []);
 
   const navigate = href => {
@@ -82,37 +53,12 @@ function Page() {
     dimmed:  '#4a5568',
     green:   '#34d399',
     greenBg: '#0d2a1f',
-    yellow:  '#fbbf24',
-    red:     '#f87171',
-  };
-
-  const statusBadgeColors = {
-    queued:     { bg: '#1e2a3a',  text: '#8b949e', icon: '\\u23F3' },
-    running:    { bg: '#172554',  text: '#60a5fa', icon: '\\u25B6' },
-    paused:     { bg: '#2d2204',  text: '#fbbf24', icon: '\\u23F8' },
-    complete:   { bg: '#0d2a1f',  text: '#34d399', icon: '\\u2714' },
-    infeasible: { bg: '#2d2204',  text: '#fbbf24', icon: '\\u26A0' },
-    failed:     { bg: '#2a1015',  text: '#f87171', icon: '\\u2718' },
-    deleted:    { bg: '#1a1a1a',  text: '#4a5568', icon: '\\u2014' },
-  };
-
-  const fmtRelative = iso => {
-    if (!iso) return '';
-    const diff = Date.now() - new Date(iso).getTime();
-    const sec = Math.floor(diff / 1000);
-    if (sec < 60) return sec + 's ago';
-    const min = Math.floor(sec / 60);
-    if (min < 60) return min + 'm ago';
-    const hr = Math.floor(min / 60);
-    if (hr < 24) return hr + 'h ago';
-    return Math.floor(hr / 24) + 'd ago';
   };
 
   const s = {
     wrapper: {
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       minHeight: '70vh', padding: '3rem 1.5rem 2rem',
-      maxWidth: 1100, width: '100%', margin: '0 auto',
     },
     header: {
       textAlign: 'center', marginBottom: '2.5rem',
@@ -139,20 +85,9 @@ function Page() {
     statusText: {
       fontSize: '.8rem', color: connected ? colors.green : colors.dimmed,
     },
-    quickStatsRow: {
-      display: 'flex', justifyContent: 'center', gap: '2rem', flexWrap: 'wrap',
-      marginBottom: '1.5rem', fontSize: '.85rem', color: colors.muted,
-    },
-    quickStatVal: {
-      color: colors.accent, fontWeight: 700,
-    },
     grid: {
-      display: 'flex', flexWrap: 'wrap', gap: '1rem',
-      width: '100%', maxWidth: 920, marginBottom: '2rem',
-      justifyContent: 'center',
-    },
-    cardOuter: {
-      flex: '1 1 280px', maxWidth: isNarrow ? '100%' : 'calc(33.33% - .75rem)', minWidth: 250,
+      display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+      gap: '1rem', width: '100%', maxWidth: 920, marginBottom: '2rem',
     },
     card: (id) => ({
       background: colors.surface,
@@ -160,7 +95,6 @@ function Page() {
       borderRadius: 10, padding: '1.5rem',
       cursor: 'pointer', transition: 'border-color .2s, box-shadow .2s',
       boxShadow: hoveredCard === id ? '0 0 0 1px ' + colors.accent + '30' : 'none',
-      height: '100%', boxSizing: 'border-box',
     }),
     cardTitle: {
       fontSize: '1.05rem', fontWeight: 600, color: colors.text,
@@ -185,22 +119,6 @@ function Page() {
     statLabel: {
       fontSize: '.75rem', color: colors.muted, marginTop: '.15rem',
     },
-    recentSection: {
-      width: '100%', maxWidth: 920, marginBottom: '2rem',
-    },
-    recentTitle: {
-      fontSize: '.85rem', fontWeight: 600, color: colors.muted, textTransform: 'uppercase',
-      letterSpacing: '.06em', marginBottom: '.5rem',
-    },
-    recentList: {
-      background: colors.surface, border: '1px solid ' + colors.border,
-      borderRadius: 8, overflow: 'hidden',
-    },
-    recentItem: (isLast) => ({
-      display: 'flex', alignItems: 'center', gap: '.75rem',
-      padding: '.5rem 1rem', borderBottom: isLast ? 'none' : '1px solid #21262d',
-      fontSize: '.85rem',
-    }),
     footer: {
       marginTop: 'auto', paddingTop: '2rem', textAlign: 'center',
       fontSize: '.78rem', color: colors.dimmed,
@@ -222,95 +140,52 @@ function Page() {
         </div>
       </div>
 
-      {/* Quick Stats Row */}
-      {quickStats && (
-        <div style={s.quickStatsRow}>
-          <span>Jobs Today: <span style={s.quickStatVal}>{quickStats.jobsToday}</span></span>
-          <span>Avg Solve Time: <span style={s.quickStatVal}>{quickStats.avgSolve}s</span></span>
-          <span>Success Rate: <span style={s.quickStatVal}>{quickStats.successRate}%</span></span>
-        </div>
-      )}
-
       <div style={s.grid}>
-        <div style={s.cardOuter}>
-          <div
-            style={s.card('jobs')}
-            onMouseEnter={() => setHoveredCard('jobs')}
-            onMouseLeave={() => setHoveredCard(null)}
-            onClick={() => navigate('/apps/sage-jobs')}
-          >
-            <span style={{...s.cardIcon, color: colors.accent}}>&#9881;</span>
-            <div style={s.cardTitle}>Solver Jobs</div>
-            <div style={s.cardDesc}>View and manage optimization jobs</div>
-          </div>
+        <div
+          style={s.card('jobs')}
+          onMouseEnter={() => setHoveredCard('jobs')}
+          onMouseLeave={() => setHoveredCard(null)}
+          onClick={() => navigate('/apps/sage-jobs')}
+        >
+          <span style={{...s.cardIcon, color: colors.accent}}>&#9881;</span>
+          <div style={s.cardTitle}>Solver Jobs</div>
+          <div style={s.cardDesc}>View and manage optimization jobs</div>
         </div>
 
-        <div style={s.cardOuter}>
-          <div
-            style={s.card('artifacts')}
-            onMouseEnter={() => setHoveredCard('artifacts')}
-            onMouseLeave={() => setHoveredCard(null)}
-            onClick={() => navigate('/apps/sage-artifacts')}
-          >
-            <span style={{...s.cardIcon, color: '#a78bfa'}}>&#9731;</span>
-            <div style={s.cardTitle}>Artifacts</div>
-            <div style={s.cardDesc}>Browse blobs, pages, schemas</div>
-          </div>
+        <div
+          style={s.card('artifacts')}
+          onMouseEnter={() => setHoveredCard('artifacts')}
+          onMouseLeave={() => setHoveredCard(null)}
+          onClick={() => navigate('/apps/sage-artifacts')}
+        >
+          <span style={{...s.cardIcon, color: '#a78bfa'}}>&#9731;</span>
+          <div style={s.cardTitle}>Artifacts</div>
+          <div style={s.cardDesc}>Browse blobs, pages, schemas</div>
         </div>
 
-        <div style={s.cardOuter}>
-          <div
-            style={s.card('health')}
-            onMouseEnter={() => setHoveredCard('health')}
-            onMouseLeave={() => setHoveredCard(null)}
-            onClick={() => navigate('/apps/sage-health')}
-          >
-            <span style={{...s.cardIcon, color: connected ? colors.green : colors.dimmed}}>&#9829;</span>
-            <div style={s.cardTitle}>System Health</div>
-            {stats ? (
-              <div style={s.statsGrid}>
-                <div style={s.statItem}>
-                  <div style={s.statNum}>{fmtUptime(stats.uptime_seconds)}</div>
-                  <div style={s.statLabel}>Uptime</div>
-                </div>
-                <div style={s.statItem}>
-                  <div style={s.statNum}>{stats.blob_count != null ? stats.blob_count : '--'}</div>
-                  <div style={s.statLabel}>Blobs</div>
-                </div>
-                <div style={s.statItem}>
-                  <div style={s.statNum}>{stats.artifact_count != null ? stats.artifact_count : '--'}</div>
-                  <div style={s.statLabel}>Pages</div>
-                </div>
+        <div style={{...s.card('health'), cursor: 'default'}}>
+          <span style={{...s.cardIcon, color: connected ? colors.green : colors.dimmed}}>&#9829;</span>
+          <div style={s.cardTitle}>System Health</div>
+          {stats ? (
+            <div style={s.statsGrid}>
+              <div style={s.statItem}>
+                <div style={s.statNum}>{fmtUptime(stats.uptime_seconds)}</div>
+                <div style={s.statLabel}>Uptime</div>
               </div>
-            ) : (
-              <div style={s.cardDesc}>Unable to fetch system stats</div>
-            )}
-          </div>
+              <div style={s.statItem}>
+                <div style={s.statNum}>{stats.blob_count != null ? stats.blob_count : '--'}</div>
+                <div style={s.statLabel}>Blobs</div>
+              </div>
+              <div style={s.statItem}>
+                <div style={s.statNum}>{stats.artifact_count != null ? stats.artifact_count : '--'}</div>
+                <div style={s.statLabel}>Pages</div>
+              </div>
+            </div>
+          ) : (
+            <div style={s.cardDesc}>Unable to fetch system stats</div>
+          )}
         </div>
       </div>
-
-      {/* Recent Jobs Feed */}
-      {recentJobs.length > 0 && (
-        <div style={s.recentSection}>
-          <div style={s.recentTitle}>Recent Jobs</div>
-          <div style={s.recentList}>
-            {recentJobs.map((j, i) => {
-              const bc = statusBadgeColors[j.status] || statusBadgeColors.queued;
-              return (
-                <div key={j.task_id} style={s.recentItem(i === recentJobs.length - 1)}>
-                  <span style={{ display:'inline-flex', alignItems:'center', gap:'.35rem', padding:'.15rem .55rem', borderRadius:12, background:bc.bg, color:bc.text, fontSize:'.72rem', fontWeight:600 }}>
-                    <span>{bc.icon}</span>{j.status}
-                  </span>
-                  <span style={{ color: colors.text, fontWeight: 500, flex: 1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                    {j.problem_name || j.task_id}
-                  </span>
-                  <span style={{ color: colors.dimmed, fontSize: '.75rem', whiteSpace:'nowrap' }}>{fmtRelative(j.created_at)}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       <div style={s.footer}>
         sage-solver-cloud &middot; ready for sage-solver-mcp integration
@@ -341,7 +216,7 @@ function Page() {
   const [query, setQuery] = React.useState('');
 
   const fmtRelative = iso => {
-    if (!iso) return '\\u2014';
+    if (!iso) return '\u2014';
     const diff = Date.now() - new Date(iso).getTime();
     const sec = Math.floor(diff / 1000);
     if (sec < 60) return sec + 's ago';
@@ -350,13 +225,6 @@ function Page() {
     const hr = Math.floor(min / 60);
     if (hr < 24) return hr + 'h ago';
     return Math.floor(hr / 24) + 'd ago';
-  };
-
-  const fmtBytes = b => {
-    if (b == null) return '--';
-    if (b < 1024) return b + ' B';
-    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
-    return (b / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
   const loadAll = key => {
@@ -429,13 +297,6 @@ function Page() {
       .catch(() => setSchemaDefs(sd => ({ ...sd, [name]: {} })));
   };
 
-  const typeIndicator = (itemType) => {
-    if (itemType === 'page') return { icon: '\\u{1F4C4}', label: 'Page' };
-    if (itemType === 'blob') return { icon: '\\u{1F4E6}', label: 'Blob' };
-    if (itemType === 'schema') return { icon: '\\u{1F4D0}', label: 'Schema' };
-    return { icon: '\\u{1F4CB}', label: 'Event' };
-  };
-
   const s = {
     tabs:     { display:'flex', gap:'.25rem', marginBottom:'1rem', borderBottom:'1px solid #30363d', paddingBottom:'.5rem' },
     tab:      { padding:'.35rem .9rem', borderRadius:6, border:'1px solid #30363d', background:'#161b22', color:'#8b949e', cursor:'pointer', fontSize:'.9rem' },
@@ -447,15 +308,13 @@ function Page() {
     pre:      { background:'#0d1117', border:'1px solid #30363d', borderRadius:6, padding:'1rem', fontSize:'.8rem', color:'#4ade80', whiteSpace:'pre-wrap', wordBreak:'break-all', marginTop:'.75rem', maxHeight:300, overflow:'auto' },
     levelColor: l => l === 'error' ? '#ff6b6b' : l === 'warn' ? '#f0a854' : '#8b949e',
     h1:       { fontSize:'1.5rem', fontWeight:600, color:'#e2e8f0', marginBottom:'1rem' },
-    empty:    { color:'#8b949e', fontSize:'.9rem', padding:'2rem 0', textAlign:'center' },
+    empty:    { color:'#8b949e', fontSize:'.9rem', padding:'1rem 0' },
     link:     { color:'#6366f1', textDecoration:'none', fontSize:'.9rem' },
     btn:      { padding:'.25rem .6rem', fontSize:'.8rem', cursor:'pointer', background:'#21262d', border:'1px solid #30363d', borderRadius:4, color:'#8b949e' },
     overlay:  { position:'fixed', inset:0, background:'rgba(0,0,0,.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100 },
     srcModal: { background:'#161b22', border:'1px solid #30363d', borderRadius:8, padding:'1.5rem', width:'min(90vw, 780px)', maxHeight:'80vh', display:'flex', flexDirection:'column', gap:'1rem' },
     srcPre:   { background:'#0d1117', border:'1px solid #30363d', borderRadius:6, padding:'1rem', fontSize:'.78rem', color:'#4ade80', whiteSpace:'pre-wrap', wordBreak:'break-all', overflow:'auto', flex:1 },
     searchBox:{ width:'100%', padding:'.4rem .7rem', background:'#0d1117', border:'1px solid #30363d', borderRadius:6, color:'#e2e8f0', fontSize:'.85rem', marginBottom:'.75rem', boxSizing:'border-box' },
-    typeTag:  { display:'inline-flex', alignItems:'center', gap:'.25rem', fontSize:'.7rem', color:'#8b949e', background:'#21262d', padding:'.1rem .4rem', borderRadius:4, marginRight:'.5rem' },
-    clearLink:{ color:'#6366f1', cursor:'pointer', textDecoration:'underline', fontSize:'.85rem' },
   };
 
   const q = query.toLowerCase();
@@ -464,21 +323,7 @@ function Page() {
   const filteredSchemas = schemas.filter(sc => !q || sc.name.toLowerCase().includes(q));
   const filteredEvents  = events.filter(e => !q || e.message.toLowerCase().includes(q) || e.level.toLowerCase().includes(q));
 
-  /* Empty state helper */
-  const EmptyState = ({ hasQuery, noItemsMsg, noMatchMsg }) => (
-    <div style={s.empty}>
-      {hasQuery ? (
-        <div>
-          <div style={{ marginBottom: '.5rem' }}>{noMatchMsg || 'No matching items.'}</div>
-          <span style={s.clearLink} onClick={() => setQuery('')}>Clear search</span>
-        </div>
-      ) : (
-        <div>{noItemsMsg || 'No items found.'}</div>
-      )}
-    </div>
-  );
-
-  if (loading) return <div style={{color:'#8b949e', padding:'3rem 0', textAlign:'center'}}>Loading artifacts\\u2026</div>;
+  if (loading) return <div style={{color:'#8b949e', padding:'3rem 0', textAlign:'center'}}>Loading artifacts\u2026</div>;
 
   return (
     <div>
@@ -492,7 +337,7 @@ function Page() {
               <button style={s.btn} onClick={() => setSourceModal(null)}>Close</button>
             </div>
             {sourceModal.loading
-              ? <div style={{color:'#8b949e', padding:'2rem 0', textAlign:'center'}}>Loading source\\u2026</div>
+              ? <div style={{color:'#8b949e', padding:'2rem 0', textAlign:'center'}}>Loading source\u2026</div>
               : <pre style={s.srcPre}>{sourceModal.src}</pre>
             }
           </div>
@@ -508,7 +353,7 @@ function Page() {
 
       <input
         style={s.searchBox}
-        placeholder={'Search ' + tab + '\\u2026'}
+        placeholder={'Search ' + tab + '\u2026'}
         value={query}
         onChange={e => { setQuery(e.target.value); setSelected(null); }}
       />
@@ -521,13 +366,12 @@ function Page() {
             </button>
           </div>
           {filteredPages.length === 0
-            ? <EmptyState hasQuery={!!q} noItemsMsg="No pages registered." noMatchMsg="No matching pages." />
+            ? <div style={s.empty}>{query ? 'No matching pages.' : 'No pages registered.'}</div>
             : compact
               ? (
                 <div style={{background:'#161b22', border:'1px solid #30363d', borderRadius:8, overflow:'hidden'}}>
                   {filteredPages.map((p, i) => (
                     <div key={p.name} style={{display:'flex', alignItems:'center', gap:'.75rem', padding:'.5rem 1rem', borderBottom: i < filteredPages.length - 1 ? '1px solid #21262d' : 'none', fontSize:'.85rem'}}>
-                      <span style={s.typeTag}>{typeIndicator('page').icon} Page</span>
                       <a href={'/apps/' + p.name} target="_blank" rel="noopener" style={s.link}>{p.name}</a>
                       <span style={{color:'#8b949e', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontSize:'.78rem'}} title={p.description || ''}>{p.description || <em style={{color:'#4a5568'}}>No description</em>}</span>
                       <span title={p.updated_at ? new Date(p.updated_at).toLocaleString() : ''} style={{color:'#4a5568', fontSize:'.75rem', whiteSpace:'nowrap'}}>{fmtRelative(p.updated_at)}</span>
@@ -540,10 +384,7 @@ function Page() {
                   <div key={p.name} style={s.card}>
                     <div style={s.row}>
                       <div style={{display:'flex', flexDirection:'column', gap:'.2rem', flex:1, minWidth:0}}>
-                        <div style={{display:'flex', alignItems:'center', gap:'.4rem'}}>
-                          <span style={s.typeTag}>{typeIndicator('page').icon} Page</span>
-                          <a href={'/apps/' + p.name} target="_blank" rel="noopener" style={s.link}>{p.name}</a>
-                        </div>
+                        <a href={'/apps/' + p.name} target="_blank" rel="noopener" style={s.link}>{p.name}</a>
                         <span
                           title={p.description || ''}
                           style={{color: p.description ? '#8b949e' : '#4a5568', fontStyle: p.description ? 'normal' : 'italic', fontSize:'.78rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}
@@ -566,19 +407,16 @@ function Page() {
       {tab === 'blobs' && (
         <div>
           {filteredBlobs.length === 0
-            ? <EmptyState hasQuery={!!q} noItemsMsg="No blobs stored." noMatchMsg="No matching blobs." />
+            ? <div style={s.empty}>{query ? 'No matching blobs.' : 'No blobs stored.'}</div>
             : filteredBlobs.map(b => (
                 <div key={b.key} style={s.card}>
                   <div style={s.row}>
-                    <div style={{display:'flex', alignItems:'center', gap:'.4rem'}}>
-                      <span style={s.typeTag}>{typeIndicator('blob').icon} Blob</span>
-                      <span style={s.key}>{b.key}</span>
-                    </div>
-                    <span style={s.meta}>{b.content_type} \\u00b7 {fmtBytes(b.size_bytes)} \\u00b7 <span title={b.created_at ? new Date(b.created_at).toLocaleString() : ''}>{fmtRelative(b.created_at)}</span></span>
+                    <span style={s.key}>{b.key}</span>
+                    <span style={s.meta}>{b.content_type} \u00b7 {b.size_bytes}B \u00b7 <span title={b.created_at ? new Date(b.created_at).toLocaleString() : ''}>{fmtRelative(b.created_at)}</span></span>
                   </div>
                   {selected === b.key
                     ? <div>
-                        <pre style={s.pre}>{blobContent[b.key] !== undefined ? blobContent[b.key] : 'Loading\\u2026'}</pre>
+                        <pre style={s.pre}>{blobContent[b.key] !== undefined ? blobContent[b.key] : 'Loading\u2026'}</pre>
                         <button onClick={() => setSelected(null)} style={{...s.btn, color:'#e2e8f0', marginTop:'.5rem'}}>Close</button>
                       </div>
                     : <button onClick={() => inspectBlob(b.key)} style={{...s.btn, marginTop:'.5rem'}}>Inspect</button>
@@ -592,19 +430,16 @@ function Page() {
       {tab === 'schemas' && (
         <div>
           {filteredSchemas.length === 0
-            ? <EmptyState hasQuery={!!q} noItemsMsg="No schemas defined." noMatchMsg="No matching schemas." />
+            ? <div style={s.empty}>{query ? 'No matching schemas.' : 'No schemas defined.'}</div>
             : filteredSchemas.map(sc => (
                 <div key={sc.name} style={s.card}>
                   <div style={s.row}>
-                    <div style={{display:'flex', alignItems:'center', gap:'.4rem'}}>
-                      <span style={s.typeTag}>{typeIndicator('schema').icon} Schema</span>
-                      <span style={s.key}>{sc.name}</span>
-                    </div>
+                    <span style={s.key}>{sc.name}</span>
                     <span style={s.meta}><span title={sc.created_at ? new Date(sc.created_at).toLocaleString() : ''}>{fmtRelative(sc.created_at)}</span></span>
                   </div>
                   {selected === sc.name
                     ? <div>
-                        <pre style={s.pre}>{schemaDefs[sc.name] !== undefined ? JSON.stringify(schemaDefs[sc.name], null, 2) : 'Loading\\u2026'}</pre>
+                        <pre style={s.pre}>{schemaDefs[sc.name] !== undefined ? JSON.stringify(schemaDefs[sc.name], null, 2) : 'Loading\u2026'}</pre>
                         <button onClick={() => setSelected(null)} style={{...s.btn, color:'#e2e8f0', marginTop:'.5rem'}}>Close</button>
                       </div>
                     : <button onClick={() => inspectSchema(sc.name)} style={{...s.btn, marginTop:'.5rem'}}>View Schema</button>
@@ -618,7 +453,7 @@ function Page() {
       {tab === 'events' && (
         <div>
           {filteredEvents.length === 0
-            ? <EmptyState hasQuery={!!q} noItemsMsg="No events logged." noMatchMsg="No matching events." />
+            ? <div style={s.empty}>{query ? 'No matching events.' : 'No events logged.'}</div>
             : filteredEvents.map(e => (
                 <div key={e.id} style={{...s.row, alignItems:'flex-start'}}>
                   <span style={{color: s.levelColor(e.level), marginRight:'.5rem', fontWeight:600, minWidth:50}}>[{e.level}]</span>
@@ -657,18 +492,10 @@ function Page() {
   const [orphans, setOrphans] = React.useState([]);
   const [confirmPurge, setConfirmPurge] = React.useState(null);
   const [webhookForm, setWebhookForm] = React.useState({});
-  const [fullPrecision, setFullPrecision] = React.useState(false);
-  const [isNarrow, setIsNarrow] = React.useState(window.innerWidth < 640);
   const chartRef = React.useRef(null);
   const chartInstance = React.useRef(null);
   const listPollRef = React.useRef(null);
   const progressPollRef = React.useRef(null);
-
-  React.useEffect(() => {
-    const onResize = () => setIsNarrow(window.innerWidth < 640);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
 
   /* ------------------------------------------------------------------ */
   /* Helpers                                                             */
@@ -681,12 +508,6 @@ function Page() {
     if (s < 60)   return s + 's';
     if (s < 3600) return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
     return Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm';
-  };
-
-  const fmtVal = (v) => {
-    if (typeof v !== 'number') return v;
-    if (fullPrecision) return v.toFixed(6);
-    return Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v).toString() : v.toFixed(4);
   };
 
   const addToast = (msg) => {
@@ -708,18 +529,6 @@ function Page() {
     if (t === 'PORTFOLIO') return '\\u{1F967}';
     if (t === 'SCHEDULING') return '\\u{1F4C5}';
     return '\\u{1F4CA}';
-  };
-
-  /* Status badge with filled pill + icon */
-  const statusIcons = {
-    queued:     '\\u23F3',
-    running:    '\\u25B6',
-    paused:     '\\u23F8',
-    complete:   '\\u2714',
-    infeasible: '\\u26A0',
-    failed:     '\\u2718',
-    stalled:    '\\u23F1',
-    deleted:    '\\u2014',
   };
 
   /* ------------------------------------------------------------------ */
@@ -815,7 +624,7 @@ function Page() {
       if (cfg && cfg.api_key) sessionStorage.setItem('sage_key', cfg.api_key);
       fetchJobs(); fetchOrphans();
     }).catch(() => { fetchJobs(); fetchOrphans(); });
-    /* Always poll every 4s */
+    /* Always poll every 4s — catches new jobs, status changes, completions */
     const timer = setInterval(() => { fetchJobs(); fetchOrphans(); }, 4000);
     return () => clearInterval(timer);
   }, []);
@@ -882,8 +691,6 @@ function Page() {
     return sm && tm;
   });
 
-  const isFiltered = statusFilter !== 'all' || typeFilter !== 'all';
-
   /* ------------------------------------------------------------------ */
   /* Expand / collapse                                                   */
   /* ------------------------------------------------------------------ */
@@ -897,51 +704,7 @@ function Page() {
   };
 
   /* ------------------------------------------------------------------ */
-  /* Error display helper                                                */
-  /* ------------------------------------------------------------------ */
-  const ErrorDisplay = ({ detail }) => {
-    const errText = detail.explanation || '';
-    let parsed = null;
-    try { parsed = JSON.parse(errText); } catch(e) {}
-
-    if (parsed && Array.isArray(parsed)) {
-      /* Pydantic-style error array */
-      return (
-        <div style={{ background:'#1a0d0d', border:'1px solid #f8717140', borderRadius:6, padding:'1rem', marginTop:'.5rem' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'.5rem' }}>
-            <span style={{ color:'#f87171', fontWeight:600, fontSize:'.85rem' }}>Validation Errors ({parsed.length})</span>
-            <button style={{ padding:'.2rem .5rem', fontSize:'.72rem', cursor:'pointer', background:'#2a1015', border:'1px solid #f87171', borderRadius:4, color:'#f87171' }}
-              onClick={() => copyText(errText, 'error')}>Copy Error</button>
-          </div>
-          {parsed.map((err, i) => (
-            <div key={i} style={{ fontSize:'.8rem', color:'#e2e8f0', marginBottom:'.35rem', paddingLeft:'.5rem', borderLeft:'2px solid #f8717140' }}>
-              <strong style={{color:'#f87171'}}>{(err.loc || []).join(' > ')}</strong>: {err.msg || JSON.stringify(err)}
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    const lines = errText.split('\\n');
-    const heading = lines[0] || 'Solver error';
-    const rest = lines.slice(1).join('\\n');
-
-    return (
-      <div style={{ background:'#1a0d0d', border:'1px solid #f8717140', borderRadius:6, padding:'1rem', marginTop:'.5rem' }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'.5rem' }}>
-          <span style={{ color:'#f87171', fontWeight:600, fontSize:'.85rem' }}>{heading}</span>
-          <button style={{ padding:'.2rem .5rem', fontSize:'.72rem', cursor:'pointer', background:'#2a1015', border:'1px solid #f87171', borderRadius:4, color:'#f87171' }}
-            onClick={() => copyText(errText, 'error')}>Copy Error</button>
-        </div>
-        {rest && (
-          <pre style={{ background:'#0d1117', border:'1px solid #30363d', borderRadius:4, padding:'.5rem', fontSize:'.78rem', color:'#e2e8f0', whiteSpace:'pre-wrap', maxHeight:200, overflow:'auto', margin:0 }}>{rest}</pre>
-        )}
-      </div>
-    );
-  };
-
-  /* ------------------------------------------------------------------ */
-  /* Sparkline (raw canvas)                                              */
+  /* Sparkline (raw canvas — no Chart.js)                                */
   /* ------------------------------------------------------------------ */
   const Sparkline = ({ history, width, height }) => {
     const canvasRef = React.useRef(null);
@@ -970,7 +733,7 @@ function Page() {
   };
 
   /* ------------------------------------------------------------------ */
-  /* Convergence chart (Chart.js) with time-normalized X axis            */
+  /* Convergence chart (Chart.js)                                        */
   /* ------------------------------------------------------------------ */
   React.useEffect(() => {
     if (!chartReady || !expanded) return;
@@ -981,7 +744,7 @@ function Page() {
     if (chartInstance.current) { chartInstance.current.destroy(); chartInstance.current = null; }
     const entries = detail.bound_history.filter(h => Array.isArray(h) && h.length >= 3);
     if (entries.length < 3) return;
-    const labels = entries.map(e => e[0]);
+    const labels = entries.map(e => e[0].toFixed ? e[0].toFixed(1) + 's' : String(e[0]));
     chartInstance.current = new window.Chart(cv, {
       type: 'line',
       data: {
@@ -996,24 +759,8 @@ function Page() {
         maintainAspectRatio: false,
         plugins: { legend: { labels: { color: '#8b949e', font: { size: 11 } } } },
         scales: {
-          x: {
-            title: { display: true, text: 'Time', color: '#8b949e', font: { size: 11 } },
-            ticks: {
-              color: '#4a5568', font: { size: 10 }, maxTicksLimit: 8,
-              callback: function(value, index) {
-                const raw = this.getLabelForValue(value);
-                const num = parseFloat(raw);
-                if (isNaN(num)) return raw;
-                return fmtElapsed(num);
-              }
-            },
-            grid: { color: '#1e2a3a' },
-          },
-          y: {
-            title: { display: true, text: 'Objective', color: '#8b949e', font: { size: 11 } },
-            ticks: { color: '#4a5568', font: { size: 10 } },
-            grid: { color: '#1e2a3a' },
-          },
+          x: { ticks: { color: '#4a5568', font: { size: 10 }, maxTicksLimit: 8 }, grid: { color: '#1e2a3a' } },
+          y: { ticks: { color: '#4a5568', font: { size: 10 } }, grid: { color: '#1e2a3a' } },
         },
       },
     });
@@ -1024,7 +771,7 @@ function Page() {
   /* Styles                                                              */
   /* ------------------------------------------------------------------ */
   const s = {
-    wrapper: { padding: '1.5rem 0', position: 'relative', minHeight: '80vh', paddingBottom: '3.5rem', maxWidth: 1100, width: '100%', margin: '0 auto' },
+    wrapper: { padding: '1.5rem 0', position: 'relative', minHeight: '80vh', paddingBottom: '3.5rem' },
     header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '.5rem' },
     title: { fontSize: '1.5rem', fontWeight: 600, color: colors.text },
     count: { fontSize: '.75rem', color: colors.dimmed, fontWeight: 400, marginLeft: '.5rem' },
@@ -1043,8 +790,7 @@ function Page() {
     },
     cardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' },
     badge: (status) => ({
-      display: 'inline-flex', alignItems: 'center', gap: '.3rem',
-      padding: '.2rem .6rem', borderRadius: 12,
+      display: 'inline-block', padding: '.15rem .55rem', borderRadius: 4,
       fontSize: '.72rem', fontWeight: 600, letterSpacing: '.03em',
       background: sc(status).bg, color: sc(status).text,
     }),
@@ -1067,9 +813,6 @@ function Page() {
     varTable: { width: '100%', borderCollapse: 'collapse', fontSize: '.8rem', marginTop: '.5rem' },
     varTh: { textAlign: 'left', padding: '.3rem .5rem', borderBottom: '1px solid ' + colors.border, color: colors.muted, fontWeight: 600, fontSize: '.72rem', textTransform: 'uppercase' },
     varTd: { padding: '.25rem .5rem', borderBottom: '1px solid ' + colors.border, color: colors.text, fontFamily: 'monospace', fontSize: '.78rem' },
-    actionIcon: { cursor: 'pointer', fontSize: '.85rem', padding: '.2rem', borderRadius: 4, background: 'transparent', border: 'none', color: colors.muted, display: 'inline-flex', alignItems: 'center', transition: 'color .15s' },
-    clearLink: { color: '#6366f1', cursor: 'pointer', textDecoration: 'underline', fontSize: '.85rem' },
-    jobListWrap: { overflowX: 'auto' },
   };
 
   /* ------------------------------------------------------------------ */
@@ -1130,15 +873,11 @@ function Page() {
         </div>
       )}
 
-      {/* Header with filtered count (#1) */}
+      {/* Header */}
       <div style={s.header}>
         <div style={s.title}>
           Solver Jobs
-          <span style={s.count}>
-            {isFiltered
-              ? filtered.length + ' matching of ' + jobs.length + ' total'
-              : jobs.length + ' total'}
-          </span>
+          <span style={s.count}>{jobs.length} total</span>
         </div>
       </div>
 
@@ -1173,26 +912,15 @@ function Page() {
       </div>
 
       {/* Job list */}
-      <div style={s.jobListWrap}>
       {filtered.length === 0 ? (
         <div style={s.empty}>
-          {jobs.length === 0 ? (
-            <>
-              <div style={{ fontSize: '2.5rem', marginBottom: '.75rem' }}>{String.fromCodePoint(0x1F4CA)}</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 600, color: colors.text, marginBottom: '.5rem' }}>No optimization jobs yet</div>
-              <div style={{ fontSize: '.9rem' }}>
-                Start a conversation with Claude and say "solve this LP..." to submit your first job.
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ fontSize: '1.1rem', fontWeight: 600, color: colors.text, marginBottom: '.5rem' }}>No jobs match the current filters</div>
-              <div style={{ fontSize: '.9rem', marginBottom: '.75rem' }}>
-                {filtered.length === 0 && isFiltered ? 'Try adjusting your filters.' : ''}
-              </div>
-              <span style={s.clearLink} onClick={() => { setStatusFilter('all'); setTypeFilter('all'); }}>Clear filters</span>
-            </>
-          )}
+          <div style={{ fontSize: '2.5rem', marginBottom: '.75rem' }}>{String.fromCodePoint(0x1F4CA)}</div>
+          <div style={{ fontSize: '1.1rem', fontWeight: 600, color: colors.text, marginBottom: '.5rem' }}>No optimization jobs yet</div>
+          <div style={{ fontSize: '.9rem' }}>
+            {jobs.length === 0
+              ? 'Start a conversation with Claude and say "solve this LP..." to submit your first job.'
+              : 'No jobs match the current filters.'}
+          </div>
         </div>
       ) : (
         filtered.map(job => {
@@ -1200,8 +928,6 @@ function Page() {
           const detail = jobDetails[job.task_id];
           const hasGap = (job.status === 'running' || job.status === 'paused') && detail && detail.gap_pct != null;
           const boundHistory = detail && detail.bound_history ? detail.bound_history.filter(h => Array.isArray(h) && h.length >= 2) : [];
-          const isTerminal = ['complete','failed','infeasible'].includes(job.status);
-          const displayName = (job.problem_name && !['SchedulingModel','LPModel','MIPModel','PortfolioModel','unnamed'].includes(job.problem_name)) ? job.problem_name : job.task_id;
 
           return (
             <div key={job.task_id}
@@ -1212,32 +938,19 @@ function Page() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '1.1rem' }}>{typeIcon(job.problem_type)}</span>
-                    {/* #5: problem_name as primary, task_id as secondary */}
-                    <span style={{ fontSize: '.95rem', fontWeight: 600, color: colors.text }}>{displayName}</span>
-                    <span style={s.badge(job.status)}>
-                      <span>{statusIcons[job.status] || ''}</span>
-                      {sc(job.status).label}
-                    </span>
+                    <span style={{ fontSize: '.95rem', fontWeight: 600, color: colors.text }}>{(job.problem_name && !['SchedulingModel','LPModel','MIPModel','PortfolioModel'].includes(job.problem_name)) ? job.problem_name : job.task_id}</span>
+                    <span style={s.badge(job.status)}>{sc(job.status).label}</span>
                   </div>
-                  {/* Secondary task_id line when name differs */}
-                  {displayName !== job.task_id && (
-                    <div style={{ fontSize: '.75rem', color: colors.dimmed, fontFamily: 'monospace', marginTop: '.15rem', cursor: 'pointer' }}
-                      onClick={e => { e.stopPropagation(); copyText(job.task_id, 'task ID'); }}>
-                      {job.task_id}
-                    </div>
-                  )}
                   <div style={s.meta}>
-                    {displayName === job.task_id && (
-                      <span style={s.metaItem}>
-                        <span style={{ fontFamily: 'monospace', fontSize: '.75rem', cursor: 'pointer', textDecoration: 'underline dotted' }}
-                          onClick={e => { e.stopPropagation(); copyText(job.task_id, 'task ID'); }}>
-                          {job.task_id}
-                        </span>
+                    <span style={s.metaItem}>
+                      <span style={{ fontFamily: 'monospace', fontSize: '.75rem', cursor: 'pointer', textDecoration: 'underline dotted' }}
+                        onClick={e => { e.stopPropagation(); copyText(job.task_id, 'task ID'); }}>
+                        {job.task_id}
                       </span>
-                    )}
+                    </span>
                     {job.problem_type && <span style={s.metaItem}>{job.problem_type}</span>}
                     {job.complexity_tier && <span style={s.metaItem}>{job.complexity_tier}</span>}
-                    {job.status === 'complete' && job.best_incumbent != null && <span style={{ ...s.metaItem, color: colors.green }}>Obj: {typeof job.best_incumbent === 'number' ? job.best_incumbent.toLocaleString(undefined, {maximumFractionDigits:4}) : job.best_incumbent}{job.elapsed_seconds != null ? ' \\u00b7 ' + fmtElapsed(job.elapsed_seconds) : ''}</span>}
+                    {job.status === 'complete' && job.best_incumbent != null && <span style={{ ...s.metaItem, color: colors.green }}>Obj: {typeof job.best_incumbent === 'number' ? job.best_incumbent.toLocaleString(undefined, {maximumFractionDigits:4}) : job.best_incumbent}{job.elapsed_seconds != null ? ' · ' + fmtElapsed(job.elapsed_seconds) : ''}</span>}
                     {job.status === 'running' && job.gap_pct != null && <span style={{ ...s.metaItem, color: colors.accent }}>Gap: {typeof job.gap_pct === 'number' ? job.gap_pct.toFixed(1) + '%' : job.gap_pct}</span>}
                     {(job.status === 'failed') && <span style={{ ...s.metaItem, color: '#f87171' }}>Error</span>}
                     {job.status === 'infeasible' && <span style={{ ...s.metaItem, color: '#fbbf24' }}>Infeasible</span>}
@@ -1255,28 +968,9 @@ function Page() {
                     </div>
                   )}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexShrink: 0 }}>
-                  {/* #9: Action icons on collapsed rows for terminal statuses */}
-                  {!isExpanded && isTerminal && (
-                    <>
-                      <button style={s.actionIcon} title="Copy Result"
-                        onClick={e => { e.stopPropagation(); copyText(window.location.origin + '/api/jobs/' + encodeURIComponent(job.task_id), 'output URL'); }}>
-                        \\u{1F4CB}
-                      </button>
-                      <button style={s.actionIcon} title="Download JSON"
-                        onClick={e => { e.stopPropagation(); window.open('/api/jobs/' + encodeURIComponent(job.task_id), '_blank'); }}>
-                        \\u{1F4E5}
-                      </button>
-                      <button style={s.actionIcon} title="Expand"
-                        onClick={e => { e.stopPropagation(); toggleExpand(job.task_id); }}>
-                        \\u{2139}
-                      </button>
-                    </>
-                  )}
-                  <span style={{ fontSize: '.75rem', color: colors.dimmed }}>
-                    {isExpanded ? '\\u25B2' : '\\u25BC'}
-                  </span>
-                </div>
+                <span style={{ fontSize: '.75rem', color: colors.dimmed, flexShrink: 0 }}>
+                  {isExpanded ? '\\u25B2' : '\\u25BC'}
+                </span>
               </div>
 
               {/* Expanded panel */}
@@ -1295,7 +989,7 @@ function Page() {
                     </div>
                   ) : (
                     <>
-                      {/* Section A: Summary / Progress */}
+                      {/* Section A: Summary / Progress — always shown when detail loaded */}
                       <div style={s.detailSection}>
                         <div style={s.detailLabel}>{['running','paused'].includes(detail.status || job.status) ? 'Progress' : 'Summary'}</div>
                         <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '.85rem', color: colors.text, marginBottom: '.5rem' }}>
@@ -1337,20 +1031,14 @@ function Page() {
                               Objective: {detail.best_incumbent.toFixed ? detail.best_incumbent.toFixed(4) : detail.best_incumbent}
                             </div>
                           )}
-                          {detail.explanation && detail.status !== 'failed' && (
+                          {detail.explanation && (
                             <div style={{ fontSize: '.85rem', color: colors.text, lineHeight: 1.5, marginBottom: '.5rem' }}>
                               {detail.explanation}
                             </div>
                           )}
-                          {/* Variable values with rounding (#2) */}
+                          {/* Top 20 variables — detail.solution is flat {name: value} */}
                           {detail.solution && typeof detail.solution === 'object' && Object.keys(detail.solution).length > 0 && (
                             <div style={{ maxHeight: 300, overflow: 'auto' }}>
-                              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '.25rem' }}>
-                                <span style={{ fontSize: '.72rem', color: colors.accent, cursor: 'pointer', textDecoration: 'underline' }}
-                                  onClick={() => setFullPrecision(p => !p)}>
-                                  {fullPrecision ? 'Show rounded' : 'Show full precision'}
-                                </span>
-                              </div>
                               <table style={s.varTable}>
                                 <thead>
                                   <tr>
@@ -1365,7 +1053,7 @@ function Page() {
                                     .map(([k, v]) => (
                                       <tr key={k}>
                                         <td style={s.varTd}>{k}</td>
-                                        <td style={{ ...s.varTd, textAlign: 'right' }}>{fmtVal(v)}</td>
+                                        <td style={{ ...s.varTd, textAlign: 'right' }}>{typeof v === 'number' ? v.toFixed(6) : v}</td>
                                       </tr>
                                     ))
                                   }
@@ -1378,13 +1066,10 @@ function Page() {
                               This problem has no feasible solution. The constraints cannot all be satisfied simultaneously.
                             </div>
                           )}
-                          {/* #4: Error display overhaul for failed jobs */}
                           {detail.status === 'failed' && (
-                            detail.explanation
-                              ? <ErrorDisplay detail={detail} />
-                              : <div style={{ color: '#f87171', fontSize: '.85rem', marginTop: '.5rem' }}>
-                                  The solver encountered an error processing this job. No additional details available.
-                                </div>
+                            <div style={{ color: '#f87171', fontSize: '.85rem', marginTop: '.5rem' }}>
+                              The solver encountered an error processing this job.{detail.explanation ? '' : ' No additional details available.'}
+                            </div>
                           )}
                         </div>
                       )}
@@ -1396,20 +1081,6 @@ function Page() {
                           <button style={s.btn(colors.accent)}
                             onClick={() => copyText(window.location.origin + '/api/jobs/' + encodeURIComponent(job.task_id), 'output URL')}>
                             Copy Output URL
-                          </button>
-                          <button style={s.btn(colors.accent)}
-                            onClick={() => {
-                              const d = jobDetails[job.task_id];
-                              if (d) {
-                                const blob = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url; a.download = job.task_id + '.json'; a.click();
-                                URL.revokeObjectURL(url);
-                                addToast('Downloaded JSON');
-                              }
-                            }}>
-                            Download JSON
                           </button>
                           <button style={s.btn(colors.red)} onClick={() => setConfirmDelete(job.task_id)}>Delete</button>
                           <button style={s.btnDisabled} disabled title="Available after Stage 14">Send to ClickUp</button>
@@ -1453,7 +1124,6 @@ function Page() {
           );
         })
       )}
-      </div>
 
       {/* Orphaned blobs */}
       {orphans.length > 0 && (
@@ -1497,152 +1167,6 @@ function Page() {
 }
 """
 
-# ---------------------------------------------------------------------------
-# Health page JSX — dedicated system health view
-# ---------------------------------------------------------------------------
-
-_HEALTH_JSX = """\
-function fmtUptime(s) {
-  if (!s && s !== 0) return '--';
-  s = Math.floor(s);
-  if (s < 60)   return s + 's';
-  if (s < 3600) return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  if (h < 24) return h + 'h ' + m + 'm';
-  const d = Math.floor(h / 24);
-  return d + 'd ' + (h % 24) + 'h ' + m + 'm';
-}
-
-function Page() {
-  const [health, setHealth] = React.useState(null);
-  const [state, setState] = React.useState(null);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState(null);
-
-  React.useEffect(() => {
-    const key = sessionStorage.getItem('sage_key') || '';
-    fetch('/api/config').then(r => r.ok ? r.json() : null).then(cfg => {
-      const apiKey = (cfg && cfg.api_key) ? cfg.api_key : key;
-      if (cfg && cfg.api_key) sessionStorage.setItem('sage_key', cfg.api_key);
-      return Promise.all([
-        fetch('/health').then(r => r.ok ? r.json() : null),
-        fetch('/api/system/state', { headers: apiKey ? { 'X-Sage-Key': apiKey } : {} }).then(r => r.ok ? r.json() : null),
-      ]);
-    })
-      .then(([h, s]) => { setHealth(h); setState(s); setLoading(false); })
-      .catch(e => { setError(e.message); setLoading(false); });
-  }, []);
-
-  const colors = {
-    bg:      '#0d1117',
-    surface: '#161b22',
-    border:  '#1e2a3a',
-    accent:  '#3b82f6',
-    text:    '#e2e8f0',
-    muted:   '#8b949e',
-    dimmed:  '#4a5568',
-    green:   '#34d399',
-    greenBg: '#0d2a1f',
-    red:     '#f87171',
-  };
-
-  const isOk = health && health.status === 'ok';
-
-  const s = {
-    wrapper: {
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      minHeight: '60vh', padding: '3rem 1.5rem 2rem',
-      maxWidth: 700, width: '100%', margin: '0 auto',
-    },
-    statusBadge: {
-      display: 'inline-flex', alignItems: 'center', gap: '.75rem',
-      padding: '.75rem 2rem', borderRadius: 16,
-      background: isOk ? colors.greenBg : '#2a1015',
-      border: '1px solid ' + (isOk ? colors.green : colors.red),
-      marginBottom: '2rem',
-    },
-    statusDot: {
-      width: 14, height: 14, borderRadius: '50%',
-      background: isOk ? colors.green : colors.red,
-      boxShadow: '0 0 8px ' + (isOk ? colors.green + '60' : colors.red + '60'),
-    },
-    statusLabel: {
-      fontSize: '1.3rem', fontWeight: 700,
-      color: isOk ? colors.green : colors.red,
-    },
-    card: {
-      background: colors.surface, border: '1px solid ' + colors.border,
-      borderRadius: 10, padding: '1.5rem', width: '100%', marginBottom: '1rem',
-    },
-    grid: {
-      display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-      gap: '1rem', width: '100%',
-    },
-    statItem: { textAlign: 'center', padding: '.75rem' },
-    statNum: { fontSize: '1.5rem', fontWeight: 700, color: colors.accent },
-    statLabel: { fontSize: '.78rem', color: colors.muted, marginTop: '.25rem' },
-    title: { fontSize: '1.5rem', fontWeight: 600, color: colors.text, marginBottom: '2rem', textAlign: 'center' },
-  };
-
-  if (loading) return <div style={{color:colors.muted, padding:'3rem 0', textAlign:'center'}}>Loading health data...</div>;
-
-  if (error) return (
-    <div style={s.wrapper}>
-      <div style={s.title}>System Health</div>
-      <div style={{ color: colors.red, fontSize: '.9rem' }}>Failed to load health data: {error}</div>
-    </div>
-  );
-
-  return (
-    <div style={s.wrapper}>
-      <div style={s.title}>System Health</div>
-
-      <div style={s.statusBadge}>
-        <div style={s.statusDot}></div>
-        <span style={s.statusLabel}>{isOk ? 'Operational' : 'Degraded'}</span>
-      </div>
-
-      <div style={s.card}>
-        <div style={s.grid}>
-          <div style={s.statItem}>
-            <div style={s.statNum}>{health && health.version ? health.version : '--'}</div>
-            <div style={s.statLabel}>Version</div>
-          </div>
-          <div style={s.statItem}>
-            <div style={s.statNum}>{state ? fmtUptime(state.uptime_seconds) : '--'}</div>
-            <div style={s.statLabel}>Uptime</div>
-          </div>
-          <div style={s.statItem}>
-            <div style={s.statNum}>{state && state.blob_count != null ? state.blob_count : '--'}</div>
-            <div style={s.statLabel}>Blobs</div>
-          </div>
-          <div style={s.statItem}>
-            <div style={s.statNum}>{state && state.artifact_count != null ? state.artifact_count : '--'}</div>
-            <div style={s.statLabel}>Pages</div>
-          </div>
-        </div>
-      </div>
-
-      {state && state.tool_count != null && (
-        <div style={s.card}>
-          <div style={{ display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap' }}>
-            <div style={s.statItem}>
-              <div style={s.statNum}>{state.tool_count}</div>
-              <div style={s.statLabel}>Tools</div>
-            </div>
-            <div style={s.statItem}>
-              <div style={s.statNum}>{state.schema_count != null ? state.schema_count : '--'}</div>
-              <div style={s.statLabel}>Schemas</div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-"""
-
 
 # ---------------------------------------------------------------------------
 # Registration
@@ -1654,7 +1178,6 @@ async def register_builtin_pages(store: ArtifactStore) -> None:
         ("sage-dashboard", _DASHBOARD_JSX, "Sage Cloud landing page"),
         ("sage-artifacts", _ARTIFACTS_JSX, "Artifact browser"),
         ("sage-jobs", _SAGE_JOBS_JSX, "Solver job dashboard"),
-        ("sage-health", _HEALTH_JSX, "System health page"),
     ]
     for name, jsx, description in pages:
         try:
