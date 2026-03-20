@@ -474,54 +474,141 @@ function Page() {
 # ---------------------------------------------------------------------------
 
 _SAGE_JOBS_JSX = """\
-function fmtElapsed(s) {
-  if (!s && s !== 0) return '--';
-  s = Math.floor(s);
-  if (s < 60)   return s + 's';
-  if (s < 3600) return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
-  return Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm';
-}
-
 function Page() {
+  /* ------------------------------------------------------------------ */
+  /* State                                                               */
+  /* ------------------------------------------------------------------ */
   const [jobs, setJobs] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
-  const [filter, setFilter] = React.useState('all');
+  const [statusFilter, setStatusFilter] = React.useState('all');
+  const [typeFilter, setTypeFilter] = React.useState('all');
   const [expanded, setExpanded] = React.useState(null);
   const [jobDetails, setJobDetails] = React.useState({});
-  const [actionMsg, setActionMsg] = React.useState(null);
+  const [toasts, setToasts] = React.useState([]);
+  const [showDeleted, setShowDeleted] = React.useState(false);
+  const [chartReady, setChartReady] = React.useState(false);
+  const [confirmDelete, setConfirmDelete] = React.useState(null);
+  const [webhookForm, setWebhookForm] = React.useState({});
+  const chartRef = React.useRef(null);
+  const chartInstance = React.useRef(null);
+  const listPollRef = React.useRef(null);
+  const progressPollRef = React.useRef(null);
 
+  /* ------------------------------------------------------------------ */
+  /* Helpers                                                             */
+  /* ------------------------------------------------------------------ */
   const getKey = () => sessionStorage.getItem('sage_key') || '';
 
+  const fmtElapsed = (s) => {
+    if (!s && s !== 0) return '--';
+    s = Math.floor(s);
+    if (s < 60)   return s + 's';
+    if (s < 3600) return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+    return Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm';
+  };
+
+  const addToast = (msg) => {
+    const id = Date.now();
+    setToasts(t => [...t, { id, msg }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3000);
+  };
+
+  const copyText = (text, label) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => addToast('Copied ' + (label || 'to clipboard')));
+    }
+  };
+
+  const typeIcon = (pt) => {
+    const t = (pt || '').toUpperCase();
+    if (t === 'LP') return '\\u{1F4C8}';
+    if (t === 'MIP') return '\\u{1F333}';
+    if (t === 'PORTFOLIO') return '\\u{1F967}';
+    if (t === 'SCHEDULING') return '\\u{1F4C5}';
+    return '\\u{1F4CA}';
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* Chart.js dynamic load                                               */
+  /* ------------------------------------------------------------------ */
+  React.useEffect(() => {
+    if (window.Chart) { setChartReady(true); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+    s.onload = () => setChartReady(true);
+    document.head.appendChild(s);
+  }, []);
+
+  /* ------------------------------------------------------------------ */
+  /* API calls                                                           */
+  /* ------------------------------------------------------------------ */
+  const hdrs = () => ({ 'X-Sage-Key': getKey() });
+  const hdrsJson = () => ({ 'X-Sage-Key': getKey(), 'Content-Type': 'application/json' });
+
   const fetchJobs = () => {
-    const apiKey = getKey();
-    fetch('/api/tools/read_blob', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Sage-Key': apiKey },
-      body: JSON.stringify({ key: 'jobs/index' }),
-    })
+    fetch('/api/jobs', { headers: hdrs() })
       .then(r => {
-        if (r.status === 404) return { data: null };
-        if (!r.ok) throw new Error('Failed to fetch jobs: ' + r.status);
+        if (!r.ok) throw new Error('Failed: ' + r.status);
         return r.json();
       })
-      .then(res => {
-        if (res && res.data) {
-          try {
-            const parsed = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
-            setJobs(parsed.jobs || []);
-          } catch (e) {
-            setJobs([]);
-          }
-        } else {
-          setJobs([]);
-        }
-        setLoading(false);
-        setError(null);
-      })
+      .then(data => { setJobs(data || []); setLoading(false); setError(null); })
       .catch(e => { setError(e.message); setLoading(false); });
   };
 
+  const fetchJobDetail = (taskId) => {
+    fetch('/api/jobs/' + encodeURIComponent(taskId), { headers: hdrs() })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) setJobDetails(d => ({ ...d, [taskId]: data }));
+      })
+      .catch(() => {});
+  };
+
+  const fetchProgress = (taskId) => {
+    fetch('/api/jobs/' + encodeURIComponent(taskId) + '/progress', { headers: hdrs() })
+      .then(r => r.ok ? r.json() : null)
+      .then(prog => {
+        if (prog) {
+          setJobDetails(d => {
+            const prev = d[taskId] || {};
+            return { ...d, [taskId]: { ...prev, ...prog } };
+          });
+        }
+      })
+      .catch(() => {});
+  };
+
+  const doPause = (taskId) => {
+    fetch('/api/jobs/' + encodeURIComponent(taskId) + '/pause', { method: 'POST', headers: hdrs() })
+      .then(r => {
+        if (r.ok) { addToast('Pause requested for ' + taskId); fetchJobs(); fetchJobDetail(taskId); }
+        else addToast('Pause failed: ' + r.status);
+      })
+      .catch(() => addToast('Pause request error'));
+  };
+
+  const doResume = (taskId) => {
+    fetch('/api/jobs/' + encodeURIComponent(taskId) + '/resume', { method: 'POST', headers: hdrs() })
+      .then(r => {
+        if (r.ok) { addToast('Resumed ' + taskId); fetchJobs(); fetchJobDetail(taskId); }
+        else addToast('Resume failed: ' + r.status);
+      })
+      .catch(() => addToast('Resume request error'));
+  };
+
+  const doDelete = (taskId) => {
+    fetch('/api/jobs/' + encodeURIComponent(taskId), { method: 'DELETE', headers: hdrsJson() })
+      .then(r => {
+        if (r.ok) { addToast('Deleted ' + taskId); setConfirmDelete(null); setExpanded(null); fetchJobs(); }
+        else addToast('Delete failed: ' + r.status);
+      })
+      .catch(() => addToast('Delete request error'));
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* Init + polling                                                      */
+  /* ------------------------------------------------------------------ */
   React.useEffect(() => {
     fetch('/api/config').then(r => r.ok ? r.json() : null).then(cfg => {
       if (cfg && cfg.api_key) sessionStorage.setItem('sage_key', cfg.api_key);
@@ -529,33 +616,80 @@ function Page() {
     }).catch(() => fetchJobs());
   }, []);
 
+  /* List polling: 5s if any running/queued, otherwise none */
   React.useEffect(() => {
-    const interval = setInterval(fetchJobs, 3000);
-    return () => clearInterval(interval);
-  }, []);
+    if (listPollRef.current) clearInterval(listPollRef.current);
+    const hasActive = jobs.some(j => j.status === 'running' || j.status === 'queued');
+    if (hasActive) {
+      listPollRef.current = setInterval(fetchJobs, 5000);
+    }
+    return () => { if (listPollRef.current) clearInterval(listPollRef.current); };
+  }, [jobs]);
 
-  const fetchJobDetail = (taskId) => {
-    if (jobDetails[taskId]) return;
-    const apiKey = getKey();
-    fetch('/api/tools/read_blob', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Sage-Key': apiKey },
-      body: JSON.stringify({ key: 'jobs/' + taskId }),
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then(res => {
-        if (res && res.data) {
-          try {
-            const parsed = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
-            setJobDetails(d => ({ ...d, [taskId]: parsed }));
-          } catch (e) {
-            setJobDetails(d => ({ ...d, [taskId]: { error: 'Invalid JSON' } }));
-          }
-        }
-      })
-      .catch(() => {});
+  /* Progress polling for expanded job */
+  React.useEffect(() => {
+    if (progressPollRef.current) clearInterval(progressPollRef.current);
+    if (!expanded) return;
+    const job = jobs.find(j => j.task_id === expanded);
+    if (!job) return;
+    let interval = null;
+    if (job.status === 'running') interval = 3000;
+    else if (job.status === 'paused') interval = 30000;
+    if (interval) {
+      progressPollRef.current = setInterval(() => fetchProgress(expanded), interval);
+    }
+    return () => { if (progressPollRef.current) clearInterval(progressPollRef.current); };
+  }, [expanded, jobs]);
+
+  /* ------------------------------------------------------------------ */
+  /* Colors & styles                                                     */
+  /* ------------------------------------------------------------------ */
+  const colors = {
+    bg:      '#0d1117',
+    surface: '#161b22',
+    border:  '#1e2a3a',
+    accent:  '#3b82f6',
+    text:    '#e2e8f0',
+    muted:   '#8b949e',
+    dimmed:  '#4a5568',
+    green:   '#34d399',
+    yellow:  '#fbbf24',
+    red:     '#f87171',
+    orange:  '#fb923c',
   };
 
+  const statusColors = {
+    queued:   { bg: '#1e2a3a',  text: '#8b949e', label: 'Queued' },
+    running:  { bg: '#172554',  text: '#60a5fa', label: 'Running' },
+    paused:   { bg: '#2d2204',  text: '#fbbf24', label: 'Paused' },
+    complete: { bg: '#0d2a1f',  text: '#34d399', label: 'Complete' },
+    failed:   { bg: '#2a1015',  text: '#f87171', label: 'Failed' },
+    stalled:  { bg: '#2a1a05',  text: '#fb923c', label: 'Stalled' },
+    deleted:  { bg: '#1a1a1a',  text: '#4a5568', label: 'Deleted' },
+  };
+
+  const sc = (status) => statusColors[status] || statusColors.queued;
+
+  /* ------------------------------------------------------------------ */
+  /* Filtering                                                           */
+  /* ------------------------------------------------------------------ */
+  const statusTabs = ['all', 'running', 'paused', 'complete', 'failed'];
+  const typeTabs   = ['all', 'LP', 'MIP', 'Portfolio', 'Scheduling'];
+
+  const visibleJobs = jobs.filter(j => {
+    if (j.status === 'deleted' && !showDeleted) return false;
+    return true;
+  });
+
+  const filtered = visibleJobs.filter(j => {
+    const sm = statusFilter === 'all' || j.status === statusFilter;
+    const tm = typeFilter === 'all' || (j.problem_type || '').toUpperCase() === typeFilter.toUpperCase();
+    return sm && tm;
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* Expand / collapse                                                   */
+  /* ------------------------------------------------------------------ */
   const toggleExpand = (taskId) => {
     if (expanded === taskId) {
       setExpanded(null);
@@ -565,129 +699,153 @@ function Page() {
     }
   };
 
-  const sendControl = (taskId, control) => {
-    const apiKey = getKey();
-    const detail = jobDetails[taskId];
-    if (!detail) return;
-    const updated = { ...detail, control: control, updated_at: new Date().toISOString() };
-    fetch('/api/tools/write_blob', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Sage-Key': apiKey },
-      body: JSON.stringify({ key: 'jobs/' + taskId, data: JSON.stringify(updated), content_type: 'application/json' }),
-    })
-      .then(r => {
-        if (r.ok) {
-          setJobDetails(d => ({ ...d, [taskId]: updated }));
-          setActionMsg({ taskId, msg: control === 'pause' ? 'Pause requested' : 'Resume requested', ok: true });
-          setTimeout(() => setActionMsg(null), 2500);
-        }
-      })
-      .catch(() => {});
+  /* ------------------------------------------------------------------ */
+  /* Sparkline (raw canvas — no Chart.js)                                */
+  /* ------------------------------------------------------------------ */
+  const Sparkline = ({ history, width, height }) => {
+    const canvasRef = React.useRef(null);
+    React.useEffect(() => {
+      const cv = canvasRef.current;
+      if (!cv || !history || history.length < 2) return;
+      const ctx = cv.getContext('2d');
+      ctx.clearRect(0, 0, width, height);
+      const vals = history.filter(h => Array.isArray(h) && h.length >= 2).map(h => h[1]);
+      if (vals.length < 2) return;
+      const mn = Math.min(...vals);
+      const mx = Math.max(...vals);
+      const range = mx - mn || 1;
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      vals.forEach((v, i) => {
+        const x = (i / (vals.length - 1)) * width;
+        const y = height - ((v - mn) / range) * (height - 4) - 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }, [history, width, height]);
+    return React.createElement('canvas', { ref: canvasRef, width: width, height: height, style: { display: 'block' } });
   };
 
-  const colors = {
-    bg:      '#0d1117',
-    surface: '#161b22',
-    border:  '#1e2a3a',
-    accent:  '#3b82f6',
-    text:    '#e2e8f0',
-    muted:   '#8b949e',
-    dimmed:  '#4a5568',
-  };
+  /* ------------------------------------------------------------------ */
+  /* Convergence chart (Chart.js)                                        */
+  /* ------------------------------------------------------------------ */
+  React.useEffect(() => {
+    if (!chartReady || !expanded) return;
+    const detail = jobDetails[expanded];
+    if (!detail || !detail.bound_history || detail.bound_history.length < 4) return;
+    const cv = chartRef.current;
+    if (!cv) return;
+    if (chartInstance.current) { chartInstance.current.destroy(); chartInstance.current = null; }
+    const entries = detail.bound_history.filter(h => Array.isArray(h) && h.length >= 3);
+    if (entries.length < 3) return;
+    const labels = entries.map(e => e[0].toFixed ? e[0].toFixed(1) + 's' : String(e[0]));
+    chartInstance.current = new window.Chart(cv, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'Dual Bound', data: entries.map(e => e[1]), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.1)', fill: false, tension: 0.2, pointRadius: 0 },
+          { label: 'Incumbent', data: entries.map(e => e[2]), borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,.1)', fill: false, tension: 0.2, pointRadius: 0 },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#8b949e', font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: '#4a5568', font: { size: 10 }, maxTicksLimit: 8 }, grid: { color: '#1e2a3a' } },
+          y: { ticks: { color: '#4a5568', font: { size: 10 } }, grid: { color: '#1e2a3a' } },
+        },
+      },
+    });
+    return () => { if (chartInstance.current) { chartInstance.current.destroy(); chartInstance.current = null; } };
+  }, [chartReady, expanded, jobDetails]);
 
-  const statusColors = {
-    queued:   { bg: '#1e2a3a', text: '#8b949e', label: 'Queued' },
-    running:  { bg: '#172554', text: '#60a5fa', label: 'Running' },
-    paused:   { bg: '#2d2204', text: '#fbbf24', label: 'Paused' },
-    complete: { bg: '#0d2a1f', text: '#34d399', label: 'Complete' },
-    failed:   { bg: '#2a1015', text: '#f87171', label: 'Failed' },
-  };
-
-  const sc = (status) => statusColors[status] || statusColors.queued;
-
-  const tabs = ['all', 'running', 'paused', 'complete', 'failed'];
-
-  const filtered = filter === 'all' ? jobs : jobs.filter(j => j.status === filter);
-
+  /* ------------------------------------------------------------------ */
+  /* Styles                                                              */
+  /* ------------------------------------------------------------------ */
   const s = {
-    wrapper: { padding: '1.5rem 0' },
-    header: {
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      marginBottom: '1.25rem', flexWrap: 'wrap', gap: '.5rem',
-    },
+    wrapper: { padding: '1.5rem 0', position: 'relative', minHeight: '80vh', paddingBottom: '3.5rem' },
+    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '.5rem' },
     title: { fontSize: '1.5rem', fontWeight: 600, color: colors.text },
-    tabs: {
-      display: 'flex', gap: '.25rem', marginBottom: '1.25rem',
-      borderBottom: '1px solid ' + colors.border, paddingBottom: '.5rem',
-    },
-    tab: (active) => ({
-      padding: '.35rem .9rem', borderRadius: 6, fontSize: '.85rem', cursor: 'pointer',
-      border: '1px solid ' + (active ? colors.accent : colors.border),
-      background: active ? '#172554' : colors.surface,
-      color: active ? '#60a5fa' : colors.muted,
-      fontWeight: active ? 600 : 400,
+    count: { fontSize: '.75rem', color: colors.dimmed, fontWeight: 400, marginLeft: '.5rem' },
+    filterRow: { display: 'flex', gap: '.25rem', flexWrap: 'wrap', marginBottom: '.6rem' },
+    filterLabel: { fontSize: '.72rem', fontWeight: 600, color: colors.muted, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.25rem' },
+    pill: (active, color) => ({
+      padding: '.3rem .75rem', borderRadius: 20, fontSize: '.8rem', cursor: 'pointer',
+      border: 'none', background: active ? (color || colors.accent) : colors.border,
+      color: active ? '#fff' : colors.muted, fontWeight: active ? 600 : 400,
+      transition: 'background .15s',
     }),
     card: {
       background: colors.surface, border: '1px solid ' + colors.border,
       borderRadius: 8, padding: '1rem 1.25rem', marginBottom: '.6rem',
       cursor: 'pointer', transition: 'border-color .15s',
     },
-    cardTop: {
-      display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-      gap: '1rem',
-    },
+    cardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' },
     badge: (status) => ({
       display: 'inline-block', padding: '.15rem .55rem', borderRadius: 4,
       fontSize: '.72rem', fontWeight: 600, letterSpacing: '.03em',
       background: sc(status).bg, color: sc(status).text,
     }),
-    meta: {
-      display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginTop: '.5rem',
-      fontSize: '.8rem', color: colors.muted,
-    },
+    meta: { display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginTop: '.5rem', fontSize: '.8rem', color: colors.muted },
     metaItem: { display: 'flex', alignItems: 'center', gap: '.25rem' },
-    detailPanel: {
-      marginTop: '.75rem', padding: '1rem',
-      background: '#0d1117', border: '1px solid ' + colors.border,
-      borderRadius: 6,
-    },
-    detailSection: { marginBottom: '.75rem' },
-    detailLabel: {
-      fontSize: '.72rem', fontWeight: 600, color: colors.muted,
-      textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.35rem',
-    },
-    detailPre: {
-      background: colors.surface, border: '1px solid ' + colors.border,
-      borderRadius: 4, padding: '.6rem', fontSize: '.78rem', color: colors.text,
-      whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 200, overflow: 'auto',
-    },
-    btn: (color) => ({
-      padding: '.3rem .75rem', fontSize: '.78rem', borderRadius: 4,
-      border: '1px solid ' + color, background: 'transparent',
-      color: color, cursor: 'pointer', marginRight: '.5rem',
-    }),
-    empty: {
-      textAlign: 'center', padding: '3rem 1rem', color: colors.muted,
-      fontSize: '.95rem',
-    },
-    toast: {
-      position: 'fixed', bottom: 24, right: 24, zIndex: 300,
-      background: colors.surface, border: '1px solid ' + colors.accent,
-      borderRadius: 8, padding: '.6rem 1rem', color: '#60a5fa',
-      fontSize: '.82rem', boxShadow: '0 4px 16px rgba(0,0,0,.5)',
-    },
-    count: {
-      fontSize: '.75rem', color: colors.dimmed, fontWeight: 400,
-      marginLeft: '.5rem',
-    },
+    gapBar: { height: 4, borderRadius: 2, background: colors.border, marginTop: '.5rem', overflow: 'hidden' },
+    gapFill: (pct) => ({ height: '100%', width: Math.min(100, Math.max(0, 100 - (pct || 100))) + '%', background: colors.accent, borderRadius: 2, transition: 'width .3s' }),
+    detailPanel: { marginTop: '.75rem', padding: '1rem', background: '#0d1117', border: '1px solid ' + colors.border, borderRadius: 6 },
+    detailSection: { marginBottom: '1rem' },
+    detailLabel: { fontSize: '.72rem', fontWeight: 600, color: colors.muted, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.35rem' },
+    detailPre: { background: colors.surface, border: '1px solid ' + colors.border, borderRadius: 4, padding: '.6rem', fontSize: '.78rem', color: colors.text, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 200, overflow: 'auto' },
+    btn: (color) => ({ padding: '.3rem .75rem', fontSize: '.78rem', borderRadius: 4, border: '1px solid ' + color, background: 'transparent', color: color, cursor: 'pointer', marginRight: '.5rem' }),
+    btnDisabled: { padding: '.3rem .75rem', fontSize: '.78rem', borderRadius: 4, border: '1px solid ' + colors.dimmed, background: 'transparent', color: colors.dimmed, cursor: 'not-allowed', marginRight: '.5rem' },
+    empty: { textAlign: 'center', padding: '4rem 1rem', color: colors.muted },
+    toast: { position: 'fixed', bottom: 56, right: 24, zIndex: 300, display: 'flex', flexDirection: 'column', gap: '.4rem', alignItems: 'flex-end' },
+    toastItem: { background: colors.surface, border: '1px solid ' + colors.accent, borderRadius: 8, padding: '.6rem 1rem', color: '#60a5fa', fontSize: '.82rem', boxShadow: '0 4px 16px rgba(0,0,0,.5)' },
+    hintBar: { position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200, background: colors.surface, borderTop: '1px solid ' + colors.border, padding: '.5rem 1.5rem', fontSize: '.78rem', color: colors.dimmed, textAlign: 'center' },
+    overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 },
+    confirmBox: { background: colors.surface, border: '1px solid ' + colors.border, borderRadius: 8, padding: '1.5rem', maxWidth: 400, textAlign: 'center' },
+    varTable: { width: '100%', borderCollapse: 'collapse', fontSize: '.8rem', marginTop: '.5rem' },
+    varTh: { textAlign: 'left', padding: '.3rem .5rem', borderBottom: '1px solid ' + colors.border, color: colors.muted, fontWeight: 600, fontSize: '.72rem', textTransform: 'uppercase' },
+    varTd: { padding: '.25rem .5rem', borderBottom: '1px solid ' + colors.border, color: colors.text, fontFamily: 'monospace', fontSize: '.78rem' },
   };
 
-  if (loading) return <div style={{color: colors.muted, padding: '3rem 0', textAlign: 'center'}}>Loading jobs...</div>;
+  /* ------------------------------------------------------------------ */
+  /* Render: loading                                                     */
+  /* ------------------------------------------------------------------ */
+  if (loading) return React.createElement('div', { style: { color: colors.muted, padding: '3rem 0', textAlign: 'center' } }, 'Loading jobs...');
 
+  /* ------------------------------------------------------------------ */
+  /* Render: main                                                        */
+  /* ------------------------------------------------------------------ */
   return (
     <div style={s.wrapper}>
-      {actionMsg && <div style={s.toast}>{actionMsg.msg}</div>}
 
+      {/* Toasts */}
+      {toasts.length > 0 && (
+        <div style={s.toast}>
+          {toasts.map(t => <div key={t.id} style={s.toastItem}>{t.msg}</div>)}
+        </div>
+      )}
+
+      {/* Delete confirm dialog */}
+      {confirmDelete && (
+        <div style={s.overlay} onClick={e => { if (e.target === e.currentTarget) setConfirmDelete(null); }}>
+          <div style={s.confirmBox}>
+            <div style={{ fontSize: '1rem', fontWeight: 600, color: colors.text, marginBottom: '1rem' }}>Delete job?</div>
+            <div style={{ fontSize: '.85rem', color: colors.muted, marginBottom: '1.25rem' }}>
+              This will soft-delete <span style={{ fontFamily: 'monospace', color: colors.text }}>{confirmDelete}</span>. The job data is preserved.
+            </div>
+            <div>
+              <button style={s.btn(colors.red)} onClick={() => doDelete(confirmDelete)}>Delete</button>
+              <button style={s.btn(colors.muted)} onClick={() => setConfirmDelete(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
       <div style={s.header}>
         <div style={s.title}>
           Solver Jobs
@@ -695,102 +853,216 @@ function Page() {
         </div>
       </div>
 
+      {/* Error banner */}
       {error && (
-        <div style={{background: '#2a1015', border: '1px solid #f87171', borderRadius: 8, padding: '.75rem 1rem', color: '#f87171', fontSize: '.85rem', marginBottom: '1rem'}}>
+        <div style={{ background: '#2a1015', border: '1px solid #f87171', borderRadius: 8, padding: '.75rem 1rem', color: '#f87171', fontSize: '.85rem', marginBottom: '1rem' }}>
           {error}
         </div>
       )}
 
-      <div style={s.tabs}>
-        {tabs.map(t => (
-          <button key={t} style={s.tab(filter === t)} onClick={() => setFilter(t)}>
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-            {t !== 'all' && <span style={{marginLeft: '.3rem', opacity: .6}}>({jobs.filter(j => t === 'all' || j.status === t).length})</span>}
-          </button>
-        ))}
+      {/* Filter row 1: Status */}
+      <div style={{ marginBottom: '.75rem' }}>
+        <div style={s.filterLabel}>Status</div>
+        <div style={s.filterRow}>
+          {statusTabs.map(t => {
+            const color = t === 'all' ? colors.accent : (sc(t).text || colors.accent);
+            return <button key={t} style={s.pill(statusFilter === t, color)} onClick={() => setStatusFilter(t)}>{t === 'all' ? 'All' : sc(t).label}</button>;
+          })}
+        </div>
       </div>
 
+      {/* Filter row 2: Type */}
+      <div style={{ marginBottom: '1.25rem' }}>
+        <div style={s.filterLabel}>Type</div>
+        <div style={s.filterRow}>
+          {typeTabs.map(t => (
+            <button key={t} style={s.pill(typeFilter === t, colors.accent)} onClick={() => setTypeFilter(t)}>
+              {t === 'all' ? 'All' : typeIcon(t) + ' ' + t}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Job list */}
       {filtered.length === 0 ? (
         <div style={s.empty}>
-          {jobs.length === 0
-            ? 'No jobs yet. Submit a problem through sage-solver-mcp to get started.'
-            : 'No ' + filter + ' jobs.'}
+          <div style={{ fontSize: '2.5rem', marginBottom: '.75rem' }}>{String.fromCodePoint(0x1F4CA)}</div>
+          <div style={{ fontSize: '1.1rem', fontWeight: 600, color: colors.text, marginBottom: '.5rem' }}>No optimization jobs yet</div>
+          <div style={{ fontSize: '.9rem' }}>
+            {jobs.length === 0
+              ? 'Start a conversation with Claude and say "solve this LP..." to submit your first job.'
+              : 'No jobs match the current filters.'}
+          </div>
         </div>
       ) : (
         filtered.map(job => {
           const isExpanded = expanded === job.task_id;
           const detail = jobDetails[job.task_id];
+          const hasGap = (job.status === 'running' || job.status === 'paused') && detail && detail.gap_pct != null;
+          const boundHistory = detail && detail.bound_history ? detail.bound_history.filter(h => Array.isArray(h) && h.length >= 2) : [];
+
           return (
             <div key={job.task_id}
-              style={{...s.card, borderColor: isExpanded ? colors.accent : colors.border}}
+              style={{ ...s.card, borderColor: isExpanded ? colors.accent : colors.border }}
               onClick={() => toggleExpand(job.task_id)}
             >
               <div style={s.cardTop}>
-                <div style={{flex: 1, minWidth: 0}}>
-                  <div style={{display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap'}}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '1.1rem' }}>{typeIcon(job.problem_type)}</span>
+                    <span style={{ fontSize: '.95rem', fontWeight: 600, color: colors.text }}>{job.problem_name || job.task_id}</span>
                     <span style={s.badge(job.status)}>{sc(job.status).label}</span>
-                    <span style={{fontSize: '.95rem', fontWeight: 600, color: colors.text}}>{job.problem_name || job.task_id}</span>
                   </div>
                   <div style={s.meta}>
-                    <span style={s.metaItem}>ID: <span style={{fontFamily: 'monospace', fontSize: '.75rem'}}>{job.task_id.length > 12 ? job.task_id.slice(0, 12) + '...' : job.task_id}</span></span>
-                    {job.problem_type && <span style={s.metaItem}>Type: {job.problem_type}</span>}
-                    {job.variable_count != null && <span style={s.metaItem}>Vars: {job.variable_count}</span>}
-                    {job.elapsed_seconds != null && <span style={s.metaItem}>Time: {fmtElapsed(job.elapsed_seconds)}</span>}
+                    <span style={s.metaItem}>
+                      <span style={{ fontFamily: 'monospace', fontSize: '.75rem', cursor: 'pointer', textDecoration: 'underline dotted' }}
+                        onClick={e => { e.stopPropagation(); copyText(job.task_id, 'task ID'); }}>
+                        {job.task_id}
+                      </span>
+                    </span>
+                    {job.problem_type && <span style={s.metaItem}>{job.problem_type}</span>}
+                    {job.complexity_tier && <span style={s.metaItem}>{job.complexity_tier}</span>}
                   </div>
+                  {/* Sparkline for bound history */}
+                  {boundHistory.length >= 3 && (
+                    <div style={{ marginTop: '.4rem' }}>
+                      <Sparkline history={boundHistory} width={120} height={20} />
+                    </div>
+                  )}
+                  {/* Gap bar */}
+                  {hasGap && (
+                    <div style={s.gapBar}>
+                      <div style={s.gapFill(detail.gap_pct)}></div>
+                    </div>
+                  )}
                 </div>
-                <span style={{fontSize: '.75rem', color: colors.dimmed, flexShrink: 0}}>
-                  {isExpanded ? '\u25b2' : '\u25bc'}
+                <span style={{ fontSize: '.75rem', color: colors.dimmed, flexShrink: 0 }}>
+                  {isExpanded ? '\\u25B2' : '\\u25BC'}
                 </span>
               </div>
 
+              {/* Expanded panel */}
               {isExpanded && (
                 <div style={s.detailPanel} onClick={e => e.stopPropagation()}>
                   {!detail ? (
-                    <div style={{color: colors.muted, fontSize: '.85rem'}}>Loading details...</div>
-                  ) : detail.error ? (
-                    <div style={{color: '#f87171', fontSize: '.85rem'}}>{detail.error}</div>
+                    <div style={{ color: colors.muted, fontSize: '.85rem' }}>Loading details...</div>
                   ) : (
                     <>
-                      {(job.status === 'running' || job.status === 'paused') && (
-                        <div style={{marginBottom: '.75rem'}}>
-                          {job.status === 'running' && (
-                            <button style={s.btn('#fbbf24')} onClick={() => sendControl(job.task_id, 'pause')}>
-                              Pause
-                            </button>
-                          )}
-                          {job.status === 'paused' && (
-                            <button style={s.btn('#60a5fa')} onClick={() => sendControl(job.task_id, 'run')}>
-                              Resume
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {detail.solution_summary && (
+                      {/* Section A: Progress (running/paused) */}
+                      {(detail.status === 'running' || detail.status === 'paused' || job.status === 'running' || job.status === 'paused') && (
                         <div style={s.detailSection}>
-                          <div style={s.detailLabel}>Solution Summary</div>
-                          <div style={{fontSize: '.85rem', color: colors.text, lineHeight: 1.5}}>
-                            {detail.solution_summary}
+                          <div style={s.detailLabel}>Progress</div>
+                          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '.85rem', color: colors.text, marginBottom: '.5rem' }}>
+                            {detail.gap_pct != null && <span>Gap: {detail.gap_pct.toFixed ? detail.gap_pct.toFixed(2) + '%' : detail.gap_pct}</span>}
+                            {detail.best_bound != null && <span>Best bound: {detail.best_bound}</span>}
+                            {detail.best_incumbent != null && <span>Incumbent: {detail.best_incumbent}</span>}
+                            {detail.node_count != null && <span>Nodes: {detail.node_count}</span>}
+                            {detail.elapsed_seconds != null && <span>Elapsed: {fmtElapsed(detail.elapsed_seconds)}</span>}
+                          </div>
+                          <div>
+                            {(detail.status === 'running' || job.status === 'running') && (
+                              <button style={s.btn(colors.yellow)} onClick={() => doPause(job.task_id)}>Pause</button>
+                            )}
+                            {(detail.status === 'paused' || job.status === 'paused') && (
+                              <button style={s.btn(colors.accent)} onClick={() => doResume(job.task_id)}>Resume</button>
+                            )}
                           </div>
                         </div>
                       )}
 
-                      {detail.cost_breakdown && Object.keys(detail.cost_breakdown).length > 0 && (
+                      {/* Section B: Convergence chart */}
+                      {chartReady && boundHistory.length > 3 && (
                         <div style={s.detailSection}>
-                          <div style={s.detailLabel}>Cost Breakdown</div>
-                          <pre style={s.detailPre}>{JSON.stringify(detail.cost_breakdown, null, 2)}</pre>
+                          <div style={s.detailLabel}>Convergence</div>
+                          <div style={{ height: 200, position: 'relative' }}>
+                            <canvas ref={chartRef} />
+                          </div>
                         </div>
                       )}
 
-                      {detail.solver_log && detail.solver_log.length > 0 && (
+                      {/* Section C: Result */}
+                      {(detail.status === 'complete' || detail.solution || detail.incumbent_solution) && (
                         <div style={s.detailSection}>
-                          <div style={s.detailLabel}>Solver Log ({detail.solver_log.length} lines)</div>
-                          <pre style={s.detailPre}>{detail.solver_log.slice(-20).join('\\n')}</pre>
+                          <div style={s.detailLabel}>Result</div>
+                          {detail.solution && detail.solution.objective_value != null && (
+                            <div style={{ fontSize: '.95rem', fontWeight: 600, color: colors.green, marginBottom: '.5rem' }}>
+                              Objective: {detail.solution.objective_value}
+                            </div>
+                          )}
+                          {detail.explanation && (
+                            <div style={{ fontSize: '.85rem', color: colors.text, lineHeight: 1.5, marginBottom: '.5rem' }}>
+                              {detail.explanation}
+                            </div>
+                          )}
+                          {/* Top 20 variables */}
+                          {detail.solution && detail.solution.variable_values && (
+                            <div style={{ maxHeight: 300, overflow: 'auto' }}>
+                              <table style={s.varTable}>
+                                <thead>
+                                  <tr>
+                                    <th style={s.varTh}>Variable</th>
+                                    <th style={{ ...s.varTh, textAlign: 'right' }}>Value</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {Object.entries(detail.solution.variable_values)
+                                    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+                                    .slice(0, 20)
+                                    .map(([k, v]) => (
+                                      <tr key={k}>
+                                        <td style={s.varTd}>{k}</td>
+                                        <td style={{ ...s.varTd, textAlign: 'right' }}>{typeof v === 'number' ? v.toFixed(6) : v}</td>
+                                      </tr>
+                                    ))
+                                  }
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
                         </div>
                       )}
 
-                      {!detail.solution_summary && (!detail.solver_log || detail.solver_log.length === 0) && !detail.cost_breakdown && (
-                        <div style={{color: colors.muted, fontSize: '.85rem'}}>No detailed output available yet.</div>
+                      {/* Section D: Actions */}
+                      <div style={s.detailSection}>
+                        <div style={s.detailLabel}>Actions</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.4rem', alignItems: 'center' }}>
+                          <button style={s.btn(colors.accent)}
+                            onClick={() => copyText(window.location.origin + '/api/jobs/' + encodeURIComponent(job.task_id), 'output URL')}>
+                            Copy Output URL
+                          </button>
+                          <button style={s.btn(colors.red)} onClick={() => setConfirmDelete(job.task_id)}>Delete</button>
+                          <button style={s.btnDisabled} disabled title="Available after Stage 14">Send to ClickUp</button>
+                        </div>
+                      </div>
+
+                      {/* Webhook config */}
+                      <div style={s.detailSection}>
+                        <div style={s.detailLabel}>Webhooks</div>
+                        {detail.output_webhooks && detail.output_webhooks.length > 0 && (
+                          <div style={{ marginBottom: '.5rem' }}>
+                            {detail.output_webhooks.map((url, i) => (
+                              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.25rem' }}>
+                                <span style={{ fontFamily: 'monospace', fontSize: '.78rem', color: colors.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{url}</span>
+                                <button style={{ ...s.btn(colors.red), padding: '.15rem .5rem', fontSize: '.7rem' }} onClick={() => addToast('Webhook removal not yet wired')}>x</button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: '.35rem', alignItems: 'center' }}>
+                          <input
+                            style={{ flex: 1, padding: '.3rem .5rem', background: colors.surface, border: '1px solid ' + colors.border, borderRadius: 4, color: colors.text, fontSize: '.8rem' }}
+                            placeholder="https://..."
+                            value={webhookForm[job.task_id] || ''}
+                            onChange={e => setWebhookForm(f => ({ ...f, [job.task_id]: e.target.value }))}
+                            onClick={e => e.stopPropagation()}
+                          />
+                          <button style={s.btn(colors.accent)} onClick={() => addToast('Webhook add not yet wired')}>Add</button>
+                        </div>
+                      </div>
+
+                      {/* Fallback for no data */}
+                      {!detail.solution && !detail.incumbent_solution && !detail.explanation && detail.status !== 'running' && detail.status !== 'paused' && detail.status !== 'complete' && (
+                        <div style={{ color: colors.muted, fontSize: '.85rem' }}>No detailed output available yet.</div>
                       )}
                     </>
                   )}
@@ -800,6 +1072,17 @@ function Page() {
           );
         })
       )}
+
+      {/* Hint bar */}
+      <div style={s.hintBar}>
+        In a new chat session, say <span style={{ fontFamily: 'monospace', color: colors.accent }}>check task {'{'}{'{'}task_id{'}'}{'}'}</span> and Claude will retrieve this job.
+        <span style={{ marginLeft: '1.5rem' }}>
+          <label style={{ cursor: 'pointer', fontSize: '.75rem', color: colors.dimmed }}>
+            <input type="checkbox" checked={showDeleted} onChange={e => setShowDeleted(e.target.checked)} style={{ marginRight: '.3rem' }} />
+            Show deleted
+          </label>
+        </span>
+      </div>
     </div>
   );
 }
