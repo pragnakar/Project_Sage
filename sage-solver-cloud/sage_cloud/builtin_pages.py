@@ -489,6 +489,8 @@ function Page() {
   const [showDeleted, setShowDeleted] = React.useState(false);
   const [chartReady, setChartReady] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(null);
+  const [orphans, setOrphans] = React.useState([]);
+  const [confirmPurge, setConfirmPurge] = React.useState(null);
   const [webhookForm, setWebhookForm] = React.useState({});
   const chartRef = React.useRef(null);
   const chartInstance = React.useRef(null);
@@ -556,6 +558,13 @@ function Page() {
       .catch(e => { setError(e.message); setLoading(false); });
   };
 
+  const fetchOrphans = () => {
+    fetch('/api/jobs/orphans', { headers: hdrs() })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setOrphans(data || []))
+      .catch(() => {});
+  };
+
   const fetchJobDetail = (taskId) => {
     fetch('/api/jobs/' + encodeURIComponent(taskId), { headers: hdrs() })
       .then(r => {
@@ -613,10 +622,10 @@ function Page() {
   React.useEffect(() => {
     fetch('/api/config').then(r => r.ok ? r.json() : null).then(cfg => {
       if (cfg && cfg.api_key) sessionStorage.setItem('sage_key', cfg.api_key);
-      fetchJobs();
-    }).catch(() => fetchJobs());
+      fetchJobs(); fetchOrphans();
+    }).catch(() => { fetchJobs(); fetchOrphans(); });
     /* Always poll every 4s — catches new jobs, status changes, completions */
-    const timer = setInterval(() => { fetchJobs(); }, 4000);
+    const timer = setInterval(() => { fetchJobs(); fetchOrphans(); }, 4000);
     return () => clearInterval(timer);
   }, []);
 
@@ -835,6 +844,30 @@ function Page() {
             <div>
               <button style={s.btn(colors.red)} onClick={() => doDelete(confirmDelete)}>Delete</button>
               <button style={s.btn(colors.muted)} onClick={() => setConfirmDelete(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Purge confirm dialog */}
+      {confirmPurge && (
+        <div style={s.overlay} onClick={e => { if (e.target === e.currentTarget) setConfirmPurge(null); }}>
+          <div style={{ ...s.confirmBox, borderColor: '#f87171' }}>
+            <div style={{ fontSize: '1rem', fontWeight: 600, color: '#f87171', marginBottom: '1rem' }}>Purge Orphaned Blob?</div>
+            <div style={{ fontSize: '.85rem', color: colors.muted, marginBottom: '1.25rem' }}>
+              This will permanently delete blob <code style={{ color: colors.text }}>{confirmPurge}</code> from the store. It cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: '.5rem' }}>
+              <button style={s.btn(colors.red)} onClick={() => {
+                fetch('/api/jobs/' + encodeURIComponent(confirmPurge) + '/purge', {
+                  method: 'DELETE', headers: hdrs(),
+                }).then(r => {
+                  if (r.ok) { addToast('Purged ' + confirmPurge); fetchOrphans(); fetchJobs(); }
+                  else addToast('Purge failed: ' + r.status);
+                  setConfirmPurge(null);
+                });
+              }}>Purge</button>
+              <button style={s.btn(colors.muted)} onClick={() => setConfirmPurge(null)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -1085,6 +1118,33 @@ function Page() {
             </div>
           );
         })
+      )}
+
+      {/* Orphaned blobs */}
+      {orphans.length > 0 && (
+        <div style={{ marginTop: '2rem' }}>
+          <div style={{ fontSize: '.8rem', fontWeight: 600, color: '#f87171', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: '.5rem' }}>
+            Orphaned Blobs ({orphans.length}) — not tracked in index
+          </div>
+          <div style={{ border: '1px solid #3d1515', borderRadius: 8, overflow: 'hidden' }}>
+            {orphans.map((o, i) => (
+              <div key={o.task_id} style={{
+                display: 'flex', alignItems: 'center', gap: '1rem',
+                padding: '.6rem 1rem',
+                borderTop: i > 0 ? '1px solid #2a1515' : 'none',
+                background: '#1a0d0d',
+              }}>
+                <code style={{ flex: 1, fontSize: '.8rem', color: '#f87171' }}>{o.task_id}</code>
+                <span style={{ fontSize: '.75rem', color: colors.muted }}>{o.size_bytes} bytes</span>
+                <span style={{ fontSize: '.75rem', color: colors.muted }}>{o.created_at ? new Date(o.created_at).toLocaleString() : ''}</span>
+                <button
+                  style={{ ...s.btn(colors.red), padding: '.2rem .6rem', fontSize: '.72rem' }}
+                  onClick={() => setConfirmPurge(o.task_id)}
+                >Purge</button>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Hint bar */}

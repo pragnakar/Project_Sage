@@ -258,6 +258,35 @@ async def list_jobs(
     return entries
 
 
+@router.get("/orphans")
+async def list_orphan_jobs(
+    request: Request,
+    auth: AuthContext = Depends(verify_api_key),
+):
+    """List job blobs that exist in the store but are not in the index.
+
+    Useful for cleaning up malformed or abandoned blobs.
+    """
+    store = _get_store(request)
+    index = await _read_index(store)
+    indexed_ids = {e.task_id for e in index.jobs}
+
+    all_job_blobs = await store.list_blobs(prefix="jobs/")
+    orphans = []
+    for blob in all_job_blobs:
+        if blob.key == "jobs/index":
+            continue
+        task_id = blob.key[len("jobs/"):]
+        if task_id not in indexed_ids:
+            orphans.append({
+                "task_id": task_id,
+                "size_bytes": blob.size_bytes,
+                "created_at": blob.created_at,
+            })
+
+    return orphans
+
+
 @router.get("/{task_id}")
 async def get_job(
     task_id: str,
@@ -421,30 +450,69 @@ async def delete_job(
     deleted_by: str | None = None,
     auth: AuthContext = Depends(verify_api_key),
 ):
-    """Soft delete a job."""
+    """Soft delete a job. Falls back to hard-delete for non-conforming blobs."""
     store = _get_store(request)
-    job = await _read_job(store, task_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail=f"Job not found: {task_id}")
 
-    # Resolve deleted_by: body takes precedence, then query param, then default
     resolved_deleted_by = "user_ui"
     if body and body.deleted_by:
         resolved_deleted_by = body.deleted_by
     elif deleted_by:
         resolved_deleted_by = deleted_by
 
-    job.status = "deleted"
-    job.deleted_at = _now()
-    job.deleted_by = resolved_deleted_by
-    await _write_job(store, job)
+    job = await _read_job(store, task_id)
+    if job is not None:
+        # Conforming blob — soft delete
+        job.status = "deleted"
+        job.deleted_at = _now()
+        job.deleted_by = resolved_deleted_by
+        await _write_job(store, job)
+    else:
+        # Non-conforming or missing blob — check it exists before hard-deleting
+        try:
+            await store.read_blob(f"jobs/{task_id}")
+        except KeyError:
+            raise HTTPException(status_code=404, detail=f"Job not found: {task_id}")
+        await store.delete_blob(f"jobs/{task_id}")
 
     # Update index
-    index = await _read_index(store)
-    for entry in index.jobs:
-        if entry.task_id == task_id:
-            entry.status = "deleted"
-            break
-    await _write_index(store, index)
+    try:
+        index = await _read_index(store)
+        if job is not None:
+            for entry in index.jobs:
+                if entry.task_id == task_id:
+                    entry.status = "deleted"
+                    break
+        else:
+            index.jobs = [e for e in index.jobs if e.task_id != task_id]
+        await _write_index(store, index)
+    except Exception:
+        pass
 
     return DeleteResponse(task_id=task_id, status="deleted")
+
+
+@router.delete("/{task_id}/purge", response_model=DeleteResponse)
+async def purge_job(
+    task_id: str,
+    request: Request,
+    auth: AuthContext = Depends(verify_api_key),
+):
+    """Hard-delete a job blob and remove it from the index entirely.
+
+    Works on any blob under jobs/{task_id} regardless of schema conformance.
+    """
+    store = _get_store(request)
+
+    deleted = await store.delete_blob(f"jobs/{task_id}")
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Job not found: {task_id}")
+
+    # Remove from index (best-effort)
+    try:
+        index = await _read_index(store)
+        index.jobs = [e for e in index.jobs if e.task_id != task_id]
+        await _write_index(store, index)
+    except Exception:
+        pass
+
+    return DeleteResponse(task_id=task_id, status="purged")
